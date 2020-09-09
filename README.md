@@ -5,14 +5,14 @@ Ref from:
 2. Dani-Mora/practical-time-series-analysis
 3. miguelfzafra/Practical-Time-Series-Analysis
 
-## 1. Basic Statistics
+### 1. Basic Statistics
 
-## 2. Visualizing Time Series, and Beginning to Model Time Series
+### 2. Visualizing Time Series, and Beginning to Model Time Series
 
-## 3. Stationarity, MA(q) and AR(p) processes
+### 3. Stationarity, MA(q) and AR(p) processes
 
-## 4. AR(p) processes, Yule-Walker equations, PACF
+### 4. AR(p) processes, Yule-Walker equations, PACF
 
-## 5. Akaike Information Criterion (AIC), Mixed Models, Integrated Models
+### 5. Akaike Information Criterion (AIC), Mixed Models, Integrated Models
 
-## 6. Seasonality, SARIMA, Forecasting
+### 6. Seasonality, SARIMA, Forecasting
