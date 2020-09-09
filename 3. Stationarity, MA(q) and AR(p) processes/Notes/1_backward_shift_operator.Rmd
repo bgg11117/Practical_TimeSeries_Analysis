@@ -1,0 +1,92 @@
+---
+title: "Backward shift operator"
+---
+
+Given random variables $X_1, X_2, ...$ we can define backward shift operator $B$ as:
+
+$$BX_t = X_{t-1}$$
+
+For instance:
+
+$$
+B^2X_t = BBX_t = BX_{t-1} = X_{t-2} \\
+B^kX_t = X_{t-k}
+$$
+
+## Backward shift operator in random walk processes
+
+Random walk is defined as:
+
+$$X_t = Z_t + X_{t-1}$$
+
+Then, we can use backward shift operator $B$:
+
+$$
+X_t = Z_t + BX_t \\
+Z_t = (1 - B)X_t
+$$
+If we define $\phi = (1 - B)$, we can rewrite random walk as:
+
+$$\phi X_t = Z_t$$
+
+## Backward shift operator in moving average processes
+
+### General case
+
+A moving average process of order $q$ with a drift, $MA(q)$, can be expressed in terms of backward shift operator as:
+
+$$
+X_t = \mu + \beta_0 Z_t + \beta_1 Z_{t-1} + ... + \beta_q Z_{t-q} \\
+X_t - \mu = \beta_0 Z_t + \beta_1 BZ_t + ... + \beta_q B^b Z_t \\
+X_t - \mu = (\beta_0 + \beta_1 B +  ... + \beta_q B^q) Z_t \\
+X_t - \mu = \beta(B) Z_t
+$$
+
+### Example
+
+Given random noise $Z_t$, we can build the following moving average of order $q=2$:
+
+$$X_t = Z_t + 0.2 Z_{t-1} + 0.04 Z_{t-2}$$
+
+If we apply backward shift operator $B$, we can rewrite it as:
+
+$$
+X_t = Z_t + 0.2 BZ_{t} + 0.04 B^2Z_{t} \\
+X_t = (1 + 0.2B + 0.04B^2) Z_t
+$$
+
+If we use $\beta(B) = (1 + 0.2B + 0.04B^2)$, we can finally rewrite it as:
+
+$$X_t = \beta(B)Z_t$$
+
+## Backward shift operator in autoregressive processes
+
+### General case
+
+An autoregressive process of order $p$, $AR(p)$, can be expressed in terms of the backward shift operator as:
+
+$$
+X_t = Z_t + \phi_1 X_{t-1} + \phi_2 X{t-2} + ... + \phi_p X_{t-p} \\
+X_t - \phi_1 X_{t-1} - \phi_2 X_{t-2} - ... - \phi_p X_{t-p} = Z_t \\
+X_t - \phi_1 B X_t - \phi_2 B^2 X_t - ... - \phi_p B^p X_t = Z_t \\
+(1 - \phi_1 B - \phi_2 B^2 - ... - \phi_p B^p) X_t = Z_t \\
+\phi(B) X_t = Z_t
+$$
+
+Where $\phi(B) = 1 - \phi_1 B - \phi_2 B^2 - ... - \phi_p B^p$.
+
+### Example
+
+Given an autoregressive process of order 2 (AR(2)):
+
+$$
+X_t = Z_t + 0.2 X_{t-1} + 0.3 X_{t-2} \\
+X_t = Z_t + 0.2 B X_t + 0.3 B^2 X_t \\
+X_t - 0.2 B X_t - 0.3 B^2 X_t = Z_t \\
+(1- 0.2 B - 0.3 B^2) X_t = Z_t \\
+\phi(B) X_t = Z_t
+$$
+
+Where $\phi(B)$ is a polynomial operator in terms of the backward shift operator, $\phi(B) = 1 - 0.2 B - 0.3 B^2$.
+
+### Example

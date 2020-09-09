@@ -1,0 +1,139 @@
+---
+title: "Forecast with simple exponential smoothing"
+---
+
+## Data
+
+Total anual rainfall in London in inches, between 1813 and 1912 (Original data from Hipe and McLeod, 1994).
+
+```{r}
+rain.data <- scan(
+  "https://robjhyndman.com/tsdldata/hurst/precip1.dat", skip = 1
+)
+rain.ts <- ts(rain.data, start = c(1813))
+```
+
+Let's visualize the data:
+
+```{r}
+par(mfrow = c(1, 2))
+hist(
+  rain.data,
+  main = "Annual London Rainfall 1813-1912",
+  xlab = "Rainfall in inches"
+)
+qqnorm(rain.data, main = "Q-Q plot of London Rainfall 1813-1912")
+qqline(rain.data)
+```
+
+There seems to be a structural deviation from normality, as the Q-Q plot shows, though it is not very extreme.
+
+```{r}
+par(mfrow = c(2, 1))
+plot(rain.ts, main = "Annual London Rainfall 1813-1912")
+acf(rain.ts, main = "ACF of London Rainfall 1813-1912")
+```
+
+Data seems to be quite random, though some seasonality may be appreciated. What if we try to fit an arima model?
+
+```{r}
+library(forecast)
+auto.arima(rain.ts)
+```
+
+The `auto.arima` command says the model $X_t = 24.8239$ is the best approach it could find. However, could we model it in any other way?
+
+## Simple exponential smoothing (SES)
+
+Given $X^t_{t+k}$ is the forecast of future point $k$ timesteps away using data up to time $t$, we define a Simple Exponential Smoothing (SES) as forecast method that uses a weighted average of the previous values, so recent values have higher weights than those which are earlier in time.
+
+In order to select a decaying sequence of weights for successive timesteps, we go again into geometric series, as they decay at a constant ratio. Let's see the geometric series with $a=1$ and $r=(1-\alpha)$:
+
+$$
+\sum^{\infty}_{k = 0} (1 - \alpha)^k = 1 + (1 - \alpha)  + (1 - \alpha)^2 + \ldots = \frac{1}{1 - (1 - \alpha)} = \frac{1}{\alpha}
+$$
+
+In order to make the geometric series sum 1, we can multiply by $\alpha$ at both sides:
+
+$$
+\alpha \sum^{\infty}_{k} (1 - \alpha)^k = \alpha + \alpha(1 - \alpha)  + \alpha(1 - \alpha)^2 + \ldots = \alpha \frac{1}{1 - (1 - \alpha)} = \frac{\alpha}{\alpha} = 1
+$$
+
+We can forecast next value, using Simple Exponential Smoothing, by weighting previous values using the corresponding term in the geometric series above:
+
+$$
+X^t_{t+1} = \alpha X_t{} + \alpha(1 - \alpha) X_{t-1} + \alpha(1 - \alpha)^2 X_{t-2} + \ldots
+$$
+Given that:
+
+$$
+X^{t-1}_{t} = \alpha X_{t-1} + \alpha (1 - \alpha) X_{t-2} + \alpha (1 - \alpha)^2 X_{t-3} + \ldots
+$$
+
+Then we can write it as a recurrent expression:
+
+$$
+X^t_{t+1} = \begin{cases}
+X_1 & t = 1 \\
+X^t_{t+1} = \alpha X_t + (1 - \alpha) X^{t-1}_t & t \gt 1
+\end{cases}
+$$
+
+Note that the $\alpha$ value controls the behavior of the prediction:
+
+- Large values of $\alpha$ (i.e. $\alpha \approx 1$) put emphasis on *near* observations. 
+- Smaller values of $\alpha$ allow weighting data points that are further in the past.
+
+
+### SES in R
+
+We can implement Smooth Exponential Smoothing easily using R:
+
+```{r}
+alpha <- 0.2
+forecast.values <- NULL
+n <- length(rain.data)
+
+# First value is a naive forecast
+forecast.values[1] <- rain.data[1]
+
+for (i in 1:n) {
+  forecast.values[i + 1] <- alpha * rain.data[i] + (1 - alpha) * forecast.values[i]
+}
+
+paste("Forecast for time", n + 1, "=", forecast.values[n + 1])
+```
+
+Note we are using an arbitrary value of $\alpha$. In order to find the best $\alpha$ value, we can select the one that produces the minimal Sum of Squares Error (SSE):
+
+```{r}
+sses <- NULL
+forecast.values <- NULL
+alpha.values <- seq(0.001, 0.999, by = 0.001)
+
+for (k in 1:length(alpha.values)) {
+  alpha <- alpha.values[k]
+  forecast.values[1] <- rain.data[1]
+
+  for (i in 2:n) {
+    forecast.values[i] <- alpha * rain.data[i - 1] + (1 - alpha) * forecast.values[i - 1]
+  }
+  
+  sses[k] <- sum((rain.data - forecast.values)**2)
+}
+
+plot(sses ~ alpha.values, main = "SEE for different alpha values")
+
+smallest.sses.idx = which.min(sses)
+print(paste("Optimal alpha is", alpha.values[smallest.sses.idx]))
+
+```
+
+### Built-in R function
+
+
+```{r}
+HoltWinters(rain.ts, beta = FALSE, gamma = FALSE)
+```
+
+Note value is slightly different as this method is using a finer grid than the one in the example above.

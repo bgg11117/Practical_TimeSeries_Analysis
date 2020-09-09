@@ -1,0 +1,210 @@
+---
+title: "Autoregressive processes (AR)"
+---
+
+## Introduction to AR
+
+Given random noise $Z_t \sim iid(0, \sigma^2)$, an autoregressive process can be defined as:
+
+$$
+X_t = Z_t + \phi_1 X_{t-1} + \phi_2 X_{t-2} + ... + \phi_p X_{t-p}
+$$
+
+Note that it differs from moving averages in the sense that moving averages depend on previous values of random
+noise while autoregressive processes depend on previous values of the forecasting time series.
+
+**Autoregressive processes may not be stationary**.
+
+### Example: random walk
+
+Definition:
+
+$$X_t = Z_t + X_{t-1}$$
+
+Assuming $\phi_1 = 1$, we have an autoregressive process.
+
+## Simulating AR in R
+
+### AR(1)
+
+```{r}
+set.seed(2016)
+n = 1000
+phi = 0.4
+z = rnorm(n, 0, 1)
+x = NULL
+x[1] = z[1]
+
+for (t in 2:n) {
+  x[t] = z[t] + phi * x[t-1]
+}
+
+x.ts = ts(x)
+```
+
+Let's plot it:
+
+```{r}
+par(mfrow=c(2, 1))
+plot(x.ts, main="AR(1) Time Series on White Noise. Phi = 0.4")
+X.acf = acf(x.ts, main="AR(1) Time Series on White Noise. Phi = 0.4")
+```
+
+We can show that increasing the value of $\phi$ we get a strong impact:
+
+- There is a more obvious correlation behavior in the time series.
+- ACF drop off is highly impacted. The higher the $\phi$, the longer it gets to get to a cut off.
+
+```{r}
+set.seed(2016)
+n = 1000
+phi = 0.9
+z = rnorm(n, 0, 1)
+x = NULL
+x[1] = z[1]
+
+for (t in 2:n) {
+  x[t] = z[t] + phi * x[t-1]
+}
+
+x.ts = ts(x)
+
+par(mfrow=c(2, 1))
+plot(x.ts, main="AR(1) Time Series on White Noise. Phi = 0.9")
+X.acf = acf(x.ts, main="AR(1) Time Series on White Noise. Phi = 0.9")
+```
+
+
+### AR(2)
+
+Let's simulate the following autoregressive process:
+
+$$X_t = Z_t + 0.7 X_{t-1} + 0.2 X_{t-2}$$
+
+```{r}
+set.seed(2017)
+n = 1000
+phi1 = 0.7
+phi2  = 0.2
+x.ts <- arima.sim(list(ar=c(phi1, phi2)), n=n)
+
+par(mfrow=c(2,1))
+plot(x.ts, main=paste("AR(2) Time Series on White Noise.pPhi1 =", phi1, "phi2 =", phi2))
+x.acf = acf(x.ts, main="Autocorrelation of AR(2) Time Series")
+```
+
+If we make $\phi$ negative, we see we incur into alternatinvg positive and negative autocorrelation:
+
+```{r}
+set.seed(2017)
+n = 1000
+phi1 = -0.8
+phi2  = -0.6
+x.ts <- arima.sim(list(ar=c(phi1, phi2)), n=n)
+
+par(mfrow=c(2,1))
+plot(x.ts, main=paste("AR(2) Time Series on White Noise.pPhi1 =", phi1, "phi2 =", phi2))
+x.acf = acf(x.ts, main="Autocorrelation of AR(2) Time Series")
+```
+
+
+## AR: Backshift operator and ACF
+
+We can rewrite AR using backshift operator $B$:
+
+$$
+X_t = Z_t + \phi_1 X_{t-1} + \phi_2 X_{t-2} + ... + \phi_p X_{t-p} = \\
+Z_t + \phi_1 B X_t + ... + \phi_q B^q X_t =\\
+Z_t + (\phi_1 B + \phi_2 B^2 + ... + \phi_q B^q)X_t
+$$
+
+We can rewrite random noise $Z_t$ as dependent on $X_t$:
+
+$$
+Z_t = X_t - (\phi_1 B + \phi_2 B^2 + ... + \phi_q B^q)X_t = \\
+(1 - \phi_1 B - \phi_2 B^2 - ... - \phi_q B^q) X_t
+$$
+
+We can then rewrite $X_t$ as:
+
+$$
+X_t = \frac{Z_t}{(1 - \phi_1 B - \phi_2 B^2 - ... - \phi_q B^q)} = \\
+\frac{Z_t}{1 - (\phi_1 B + \phi_2 B^2 + ... + \phi_q B^q)}
+$$
+
+This remainds quite a lot to we have already seen for geometric series. Autoregressive processes of order $q$ (i.e. AR(1)) can be thought as infinite-order moving average processes:
+
+$$X_t = (1 + \phi_1 B + \phi_2 B + ...) Z_t$$
+
+### Example with AR(1)
+
+$$
+X_t = Z_t + \phi X_{t-1} = \\
+Z_t + \phi (Z_{t-1} + \phi X_{t-2}) = \\
+Z_t + \phi Z_{t-1} + \phi^2(Z_{t-2} + \phi X_{t-3}) = \\
+Z_t + \phi Z_{t-1} + \phi^2 Z_{t-2} + \phi^3 X_{t-3}
+$$
+
+If we use the backward shift operator $B$, we can easily define it:
+
+$$
+X_t = Z_t + \phi B X_t \\
+(1 - \phi B) X_t = Z_t \\
+X_t = \frac{1}{(1 - \phi B)} Z_t
+$$
+
+We have a geometric series here where $a=Z_t$ and $r=\phi B$ (i.e. |r| < 1). Therefore, we can rewrite $X_t$ as: 
+
+$$
+X_t = \frac{1}{(1 - \phi B)} Z_t = \\ 
+(1 + \phi B + \phi^2 B^2 + ...) Z_t = \\
+\sum^{\infty}_{k=0} (\phi B)^k Z_t = \\
+(1 + \phi_1 B + \phi_2 B^2 + ...) Z_t
+$$
+
+We can then easily compute the **expected value of $X_t$**:
+
+$$
+E[X_t] = E[(1 + \phi_1 B + \phi_2 B^2 + ...) Z_t] = \\
+E[Z_t + \phi_1 Z_{t-1} + \phi_2 Z_{t-2} + ...] = \\
+E[Z_t] + \phi_1 E[Z_{t-1}] + \phi_2 E[Z_{t-2}] + ... = 0
+$$
+
+As the expected value can be read as a sum of expected values of random variables with zero mean, the expected value of the sum is also zero.
+
+We can do the same for the **expected value of the variance** (using property $V[aX] = a^2 V[X]$):
+
+$$
+V[X_t] = \\
+V[(1 + \phi_1 B + \phi_2 B^2 + ...) Z_t] = \\
+V[Z_t] + \phi_1² V[Z_{t-1}] + \phi_2² V[Z_{t-2}] + ... = \\
+\sigma_z^2 + \phi_1² \sigma_z^2 + \phi_2^2 \sigma_z^2 + ... \\
+\sigma_z^2 \sum^{\infty}_{k=0} \phi_i^2
+$$
+
+### Properties of AR
+
+#### Autocovariance
+
+While autocovariance for $MA(q)$ processes are defined as:
+
+$$
+\gamma(k) = \sigma^2_Z \sum^{q-k}_{i=0} \phi_i \phi_{i+k}
+$$
+
+For an $AR(p)$ process:
+
+$$
+\gamma(k) = \sigma^2_Z \sum^{\infty}_{i=0} \phi_i \phi_{i+k}
+$$
+
+Note the main difference is that contributions to covariance are limited to positions within $q$ in $MA$ while all positions contribute to covariance in $AR$. Note also that this converges if $\sum^{\infty}_{i=0} | \phi_i |$ absolutely converges.
+
+
+#### Autocorrelation
+
+Then, autocorrelation can be easily computed as:
+
+$$
+\rho(k) = \frac{\gamma(k)}{\gamma(0)} = \frac{\sigma^2_Z \sum^{\infty}_{i=0} \phi_i \phi_{i+k}}{\sigma^2_Z \sum^{\infty}_{i=0} \phi_i \phi_{i}} = \frac{\sum^{\infty}_{i=0} \phi_i \phi_{i+k}}{\sum^{\infty}_{i=0} \phi_i \phi_{i}}
+$$

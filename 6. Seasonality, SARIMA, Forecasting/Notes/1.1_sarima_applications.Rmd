@@ -1,0 +1,299 @@
+---
+title: "Sarima Applications: J&J"
+output: 
+  html_document:
+    number_sections: true
+---
+
+
+## Objective
+
+The objective of this notebook is to forecast future values of a given time series.
+
+## Model restrictions
+
+Following the *parsimony principle*, we will be restricting our pool of model candidates so they follow the following restriciton:
+
+$$
+p + d + q + P + D + Q \le 6
+$$
+
+By doing so, we ensure we keep the model complexity low.
+
+## Data
+
+The data corresponds to the sales at a souvenir shop in Australia, from January 1987 to December 1993.
+
+```{r}
+library(forecast)
+library(astsa)
+
+data <- ts(read.table("https://robjhyndman.com/tsdldata/data/fancy.dat"))
+plot(
+  data,
+  main = "Monthly souvenir shop sales (Jan 1987 - Dec 1993)",
+  ylab = "Sales",
+  col = "blue"
+)
+```
+
+We see
+
+- Heteroscedascity (i.e. variance increases).
+- Increasing trend.
+- Seasonality.
+
+To visualize ACF and PACF, We will be using the `acf2` function from the `astsa` package, which plots both ACF and PACF, removing lag 0 value from ACF:
+
+```{r}
+acf2(data, max.lag = 50, main = "ACF and PACF of the original sales data")
+```
+
+By looking at the ACF we can tell:
+
+- There is seasonality in the data, as there is a peak at lag 12, lag 24, etc.
+- There is probably no moving average component, as there is only a peak at lag 0.
+
+By looking at the PACF, we can tell:
+
+- We confirm there is seasonality in the data, as there are peaks at multiples of 12.
+- We see there is a peak at lag 1, which may mean that there is an autoregressive component of order 1.
+
+## Transforming the data
+
+We have seen above that variance in the data needs to be adjusted. If we apply the logarithm, we get:
+
+```{r}
+plot(
+  log(data),
+  main = "Log of monthly souvenir shop sales (Jan 1987 - Dec 1993)",
+  ylab = "Sales",
+  col = "blue"
+)
+```
+
+We see the variance has stabilized. However, we still see an increasing trend. Let's compute the log return of the data:
+
+```{r}
+plot(
+  diff(log(data)),
+  main = "Log return of monthly souvenir shop sales (Jan 1987 - Dec 1993)",
+  ylab = "Sales",
+  col = "blue"
+)
+```
+
+We still see peaks at lag 12, let's use differencing to correct it:
+
+```{r}
+data.log_return <-
+plot(
+  diff(diff(log(data), 12)),
+  main = "Log return without seasonality of monthly souvenir shop sales (Jan 1987 - Dec 1993)",
+  ylab = "Sales",
+  col = "blue"
+)
+```
+
+We see we get a time series with constant mean and, even though variance is slighlty bigger at the first timesteps, we can assume the time series is stationary. Note that:
+
+- We are modelling now on $Y_t = log(X_t)$, where $X_t$ is the original value of the sales.
+- Order of differencing (i.e. $d$) is 1 (inner `diff` in `diff(diff(log(data)), 12)`).
+- Order of seasonal differencing (i.e. $D$) is 1 (outer `diff` in `diff(diff(log(data)), 12)`).
+
+### Assume autocorrelation exists
+
+```{r}
+Box.test(
+  diff(diff(log(data)), 12),
+  lag = log(length(diff(diff(log(data)), 12))),
+  type = "Ljung-Box"
+)
+```
+
+We see p-value is very small, therefore, we can reject the null hypothesis that all autocorrelation coefficients are 0. We assume there is a correlation.
+
+
+### Suggest order through ACF and PACF
+
+Let's look at the ACF and PACF of the seasonally differenced log return:
+
+```{r}
+acf2(
+  diff(diff(log(data)), 12),
+  max.lag = 50,
+  main = "ACF and PACF of the seasonally differenced log return of the shop sales "
+)
+```
+
+The ACF tells us:
+
+- We have a significant autocorrelation at lag 1 at the ACF, which means the moving average order may be $q=1$.
+- There is a seasonal component with peaks at lag 21 and 34. We will try different values for seasonal moving average orders $Q$.
+
+The PACF tells us:
+
+- There probably is an autoregressive component of order $p=1$.
+- There does not seem to be a seasonal autoregressive component.
+
+### Fit candidates
+
+We saw that we want to apply a differencing of 1 and a seasonal differencing of one for span $12$:
+
+$$
+SARIMA(p, 1, q, P, 1, Q)_{12}
+$$
+
+We define the domain of the hyperparameters:
+
+- $p = \{0, 1\}$
+- $q = \{0, 1\}$
+- $P = \{0, 1\}$
+- $Q = \{0, 1, 2, 3\}$
+
+Note that we are fitting our model on $Y_t$, which is defined as:
+
+$$Y_t = log(X_t)$$
+
+As the differencing is already handled within the model. And we define our candidates as (nearly) all possible combinations of hyperparameters.
+
+Let's fit all of them:
+
+
+```{r}
+d <- 1
+D <- 1
+s <- 12
+
+names <- NULL
+pvalues <- NULL
+sses <- NULL
+aics <- NULL
+
+i <- 1
+for (p in (0:1)) {
+  for (q in (0:1)) {
+    for (P in (0:1)) {
+      for (Q in (0:3)) {
+        # Note we provide the log return data, as both seasonal and non-seasonal
+        # differencing is handled by the model
+        model <- arima(
+          x = log(data),
+          order = c(p, d, q),
+          seasonal = list(order = c(P, D, Q), period = s),
+        )
+        # Check correlation of model residuals
+        pvalues[i] <- Box.test(
+          model$residuals,
+          lag = log(length(model$residuals)),
+          type = "Ljung-Box"
+        )$p.value
+        names[i] <- paste(
+          "SARIMA(", p, ",", d, ",", q, ",", P, ",", D, ",", Q, ")_", s, sep = ""
+        )
+        sses[i] <- sum(model$residuals^2)
+        aics[i] <- model$aic
+        i <- i + 1
+      }
+    }
+  }
+}
+
+```
+
+Display data frame with the model performances by showing the top performing ones first:
+
+```{r}
+results <- data.frame(
+  name = names,
+  AIC = aics,
+  SSE = sses,
+  pvalue = pvalues
+)
+
+format(results[order(results$AIC), ], scientific = FALSE)
+```
+
+The top performing model is $SARIMA(1, 1, 0, 0, 1, 1)_12$, which has:
+
+- Autocorrelation order of "p=1$.
+- Span of $S=12$.
+- Seasonal autocorrelationmoving average of order $Q=1$.
+- Differencing and seasonal differencing $d=D=1$.
+
+We observe that the p-value of the model is quite high, which means we do not have evidente to reject the null hypothesis that there is no autocorrelation in the residuals (therefore, we assume that residuals are not correlated).
+
+### Obtain coefficients
+
+After we have computed the most suited model, we can proceed to compute the coefficients:
+
+```{r}
+model <- sarima(
+  log(data),
+  p = 1,
+  d = 1,
+  q = 0,
+  P = 0,
+  D = 1,
+  Q = 1,
+  S = 12,
+)
+model
+```
+
+We see there are no significant autocorrelations in the residuals (though the normal Q-Q plot displays strong deviations at the quantile tails).
+
+```{r}
+model$ttable
+```
+
+We see p-values for both coefficients are very small, so coefficient values are significant.
+
+### Write resulting model
+
+Given:
+
+$$
+X_t = Sales \\
+Y_t = log(X_t)
+$$
+
+We can write our $SARIMA(1, 1, 0, 0, 1, 1)_12$ as:
+
+$$
+(1 - \phi_1 B) (1 - B) (1 - B^s) Y_t = (1 + \Theta_1 B^s) Z_t \\
+(1 - \phi_1 B)  (1 - B) (1 - B^{12}) Y_t = (1 + \Theta_1 B^{12}) Z_t \\
+(1 - B - \phi_1 B + \phi_1 B^2) (1 - B^{12}) Y_t = Z_t + \Theta_1 Z_{t-12} \\
+(1 - B^{12} - B + B^{13} - \phi_1B + \phi_1 B^{13} + \phi_1B^2 - \phi_1 B^{14}) Y_t = Z_t + \Theta_1 Z_{t-12} \\
+(1 - (1 + \phi_1)B + \phi_1 B^2 - B^{12} + (1 + \phi_1) B^{13} - \phi_1 B^{14}) Y_t = Z_t + \Theta_1 Z_{t-12} \\
+Y_t - (1 + \phi_1) Y_{1-1} + \phi_1 Y_{t-2} - Y_{t-12} + (1 + \phi_1) B^{13} - \phi_1 Y_{t-14} = Z_t + \Theta_1 Z_{t-12} \\
+Y_t =  Z_t + \Theta_1 Z_{t-12} + (1 + \phi_1) Y_{1-1} - \phi_1 Y_{t-2} + Y_{t-12} - (1 + \phi_1) Y_{t-13} + \phi_1 Y_{t-14} \\
+$$
+
+If we replace $\phi_1 = -0.5017$ and $\theta_1 = -0.5017$, we get:
+
+$$
+Y_t =  Z_t - 0.5017 Z_{t-12} + 0.4983 Y_{1-1} + 0.5017  Y_{t-2} + Y_{t-12} - 0.4983 Y_{t-13} - 0.5017 Y_{t-14} \\
+Y_t = log(X_t) \\
+Z_t \sim N(0, 0.03111)
+$$
+
+### Forecasting
+
+We can forecast future point using the `forecast` package:
+
+```{r}
+library(forecast)
+model <- arima(
+  x = log(data),
+  order = c(1, 1, 0), seasonal = list(order = c(0, 1, 1), period = s)
+)
+plot(forecast(model))
+```
+
+The darkest shaded area is the 80% confidence interval and the lightest shaded area is the 95% confidence interval.
+We see the values for the next two years in the plot. We can also see a full projection on the values and their confidence intervals:
+
+```{r}
+forecast(model)
+```

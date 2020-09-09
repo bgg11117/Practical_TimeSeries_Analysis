@@ -1,0 +1,147 @@
+---
+title: "Fitting Johnson & Johnson data  "
+---
+
+## The Data
+
+- Earnings per Johnson & Johnson share in dollars between 1960 and 1980.
+- Quarter data.
+
+Dataset related to this book [see @timeseriesnalaysis].
+
+```{r}
+library(astsa)
+plot(
+  JohnsonJohnson,
+  main = "Johnson & Johnson quarterly earnings",
+  col = "blue",
+  lwd = 3,
+  ylab = "$"
+)
+```
+
+Data shows an increasing trend but also a systematic increase of the variance. In order to have constant mean, we can use the **log return** $r$ as:
+
+$$
+r_t = log \left( \frac{X_t}{X_{t-1}} \right) = log(X_t) - log(X_{t-1})
+$$
+
+Let's do it in R:
+
+
+```{r}
+jj <- JohnsonJohnson
+jj.centered <- diff(log(jj))
+
+par(mfrow = c(3, 1))
+plot(
+  jj.centered,
+  main = "Johnson & Johnson quarterly log return earnings",
+  col = "blue",
+  lwd = 3,
+  ylab = "$"
+)
+acf(
+  jj.centered,
+  type = "correlation",
+  main = "Autocorrelation function for J&J log return data"
+)
+pacf(
+  jj.centered,
+  main = "Autocovariance function for recruitment J&J log return data"
+)
+```
+
+We see it now has an approximately constant mean. We see PACF has 4 significant peaks, so, following the same principle as in the
+previous example, we are going to try for the simplest and most compelling theory, which is that the underlying process
+is an autoregressive process of order 4:
+
+$$
+r_t = Z_t + \hat{\phi}_0 + \hat{\phi}_1 r_{t-1} + \hat{\phi}_2 r_{t-2} + \hat{\phi_3} r_{t-3} + \hat{\phi_4} r_{t-4} \\
+Z_t \sim Normal(0, \sigma_Z^2)
+$$
+
+## Modelling the data
+
+Let's first center data around 0 and compute the sample autocorrelation vector $r$ (i.e. $\hat{b}$):
+
+```{r}
+p <- 4
+jj.centered.zero_mean <- jj.centered - mean(jj.centered)
+r <- acf(jj.centered.zero_mean, type = "correlation", plot=FALSE)$acf[2:(2+p-1)]
+r
+```
+
+
+Let's generate matrix $\hat{R}$:
+
+```{r}
+R.hat <- matrix(1, p, p)
+for (row in 1:p) {
+  for (col in 1:p) {
+    if (row != col){
+      R.hat[row, col] <- r[abs(row - col)]
+    }
+  }
+}
+R.hat
+```
+
+Then we can solve:
+
+$$
+\hat{R} \hat{\phi} = \hat{b}
+$$
+
+```{r}
+b.hat <- matrix(r, p, 1)
+phi.hat <- solve(R.hat, b.hat)
+phi.hat
+```
+
+Let's obtain now the estimate of the variance of $Z_t$:
+
+```{r}
+c0 <- acf(jj.centered.zero_mean, type = "covariance", plot=FALSE)$acf[1]
+var.hat <- c0 * (1 - t(b.hat) %*% phi.hat)
+var.hat
+```
+
+We can finally estimate $\phi_0$ using the formula derived from the previous example:
+
+$$
+\hat{\phi}_0 = \mu \left(1 - \sum^{p}_{i=1} \hat{\phi_i} \right)
+$$
+
+Let's compute it in $R$:
+
+```{r}
+theta.0 <- mean(jj.centered) * (1 - sum(phi.hat))
+theta.0
+```
+
+We can then obtain the complete form of the model for the data:
+
+$$
+r_t = Z_t + 0.0798 - 0.6293 \ r_{t-1} - 0.5171 \ r_{t-2} - 0.4883 \ r_{t-3} + 0.2651 \ r_{t-4} \\
+Z_t \sim Normal(0, 0.0142)
+$$
+
+
+## Bibliography
+
+---
+references:
+- id: timeseriesnalaysis
+  title: Time Series Analysis and Its Applications
+  author:
+  - family: Suhmway
+    given: Robert H.
+  - family: Stoffer
+    given: David S.
+  publisher: Springer-Verlag
+  isbn: 0387989501
+  type: book
+  issued:
+    year: 2005
+---

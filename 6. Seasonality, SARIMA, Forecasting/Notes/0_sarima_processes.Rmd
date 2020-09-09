@@ -1,0 +1,292 @@
+---
+title: "SARIMA processes"
+---
+
+Real data may contain seasonal periodic components, where there is a dependency of $X_t$ with $X_{t-s}$. For instance, for a time series with montly observations, it is possible that there is a periodic component at $s=12$. Developed by Box and Jenquins, Seasonal Autoregressive Integrated Moving Average processes (SARIMA) deal with this kind of issues.
+
+
+## Seasonal ARMA process
+
+The season arma process (i.e. $ARMA(P, Q)_s$ is defined as:
+
+$$
+\Phi_P(B^S) X_t = \Theta_Q (B^s) Z_t
+$$
+
+Where:
+
+$$
+\Phi_P(B^s) = 1 - \Phi_1 B^2 - \Phi_2 B^{2s} - \ldots- \Phi_P B^{Ps} \\
+\Theta_Q(B^s) = 1 + \Theta_1 B^2 + \Theta_2 B^{2s} + \ldots + \Theta_Q B^{Qs}
+$$
+
+### Invertibility and stationarity
+
+Same conditions as for pure ARMA processes hold:
+
+- For Seasonal ARMA to be invertible, we need the complex roots of $\Theta_Q(x^s)$ to lie outside the unit circle.
+- For Seasonal ARMA to be stationaryy, we need the complex roots of $\Phi_P(x^s)$ to lie outside the unit circle.
+
+
+### Examples
+
+- Example of Seasonal $ARMA(p=1, q=0)_{12}$ is:
+
+$$
+(1 - \Phi_1 B^{12}) X_t = Z_t \\
+X_t = \Phi_1 X_{t-12} + Z_t 
+$$
+
+- Example of Seasonal $ARMA(p=1, q=1)_{12}$:
+
+$$
+(1 - \Phi_1 B^{12}) X_t = (1 + \Theta_1 B^{12}) Z_t \\
+X = \Phi_1 X_{t - 12} + Z_t + \Theta_1 Z_{t-12}
+$$
+
+
+## Seasonal ARIMA processes (SARIMA)
+
+A $SARIMA(p, d, q, P, D, Q)_S$ has the following form:
+
+$$
+\Phi_P(B^s) \phi_p(B) (1 - B^s)^D (1 - B)^d X_t = \Theta_Q(B^s) \theta_q(B) Z_t
+$$
+
+Where:
+
+- $(1 - B^s)^D$ is the seasonal differencing polynomial.
+
+
+- $\nabla^d = (1 - B)^d$ is the non-seasonal differencing polynomial.
+
+- $\Phi_P(B^S)$ is the seasonal autoregressive component:
+
+$$
+\Phi_P(B^s) = 1 - \Phi_1 B^s - \Phi_2 B^{2s} - \ldots - \Phi_P B^{Ps}
+$$
+
+- $\Theta_Q(B^S)$ is the seasonal moving average component :
+
+$$
+\Theta_Q(B^s) = 1 + \Theta_1 B^s + \Theta_2 B^{2s} + \ldots + \Theta_Q B^{Qs}
+$$
+
+- $\phi_p(B)$ is the non-seasonal autoregressive component :
+
+$$
+\phi_p(B) = 1 - \phi_1 B - \phi_2 B^2 - \ldots - \phi_p B^p
+$$
+
+- $\theta_q(B)$ is the non-seasonal moving average component):
+
+$$
+\theta_q(B) = 1 + \theta_1 B + \theta_2 B^2 + \ldots + \theta_q B^q
+$$
+
+
+Therefore:
+
+- $d$ is the non-seasonal differencing order.
+- $D$ is the seasonal differencing order.
+- $P$ is the seasonal autoregressive order.
+- $Q$ is the seasonal moving average order.
+- $p$ is the non-seasonal autoregressive order.
+- $q$ is the non-seasonal moving average order.
+
+### Examples
+
+Let's show an example of a $SARIMA(1,0,1,0,1)_{s=12}$:
+
+$$
+(1 - \phi_1 B) (1 - \Phi_1 B^{12}) X_t = (1 + \Theta_1 B^{12}) Z_t \\
+(1 - \Phi_1 B^{12} - \phi_1 B + \phi_1\Phi_1 B^{13}) X_t = Z_t + \Theta_1 Z_{t-12} \\
+X_t - \Phi_1 X_{t-12} - \phi_1 X_{t-1} + \phi_1 \Phi_1 X_{t-13} = Z_t + \Theta_1 Z_{t-12} \\
+X_t = \phi_1 X_{t-1} + \Phi_1 X_{t-12} - \phi_1 \Phi_1 X_{t-13} + Z_t + \Theta_1 Z_{t-12}
+$$
+
+Now let's show an example of a $SARIMA(0,1,1,0,0,1)_{s=4}$:
+
+$$
+(1 - B) X_t = (1 + \Theta_1 B^4) (1 + \theta_1 B) Z_t \\
+X_t - X_{t-1} = (1 + \theta_1 B + \Theta_1 B^4 + \Theta_1 \theta_1 B^5) Z_t \\
+X_t - X_{t-1} = Z_t + \theta_1 Z_{t-1} + \Theta_1 Z_{t-4} + \Theta_1 \theta_1 Z_{t-5} \\
+X_t = X_{t-1} + Z_t + \theta_1 Z_{t-1} + \Theta_1 Z_{t-4} + \Theta_1 \theta_1 Z_{t-5}
+$$
+
+### Autocorrelation function
+
+Now we are going to look at the autocorrelation function of a specific SARIMA model and then we are going to derive the function analytically.
+
+We are going to use a $SARIMA(0, 0, 1, 0, 0, 1)_{12}$ model, that has a seasonal and non-seasonal moving averages only:
+
+$$
+X_t = (1 + \Theta_1 B^{12}) (1 + \theta_1 B) Z_t \\
+X_t = (1 + \theta_1 B + \Theta_1 B^{12} + \Theta_1 \theta_1 B^{13}) Z_t \\
+X_t = Z_t + \theta_1 Z_{t-1} + \Theta_1 Z_{t-12} + \Theta_1 \theta_1 Z_{t-13}
+$$
+
+We will be using $\theta_1 = 0.7$, $\Theta_1 = 0.6$:
+
+$$
+X_t = Z_t + 0.7 Z_{t-1} + 0.6 Z_{t-12} + 0.42 Z_{t-13}
+$$
+
+
+#### ACF in R
+
+Let's simulate and visualize the time series:
+
+```{r}
+x <- NULL
+n <- 10000
+s <- 12
+
+set.seed(500)
+
+z <- rnorm(n)
+x[1:(s + 1)] <- 1
+
+for(i in (s + 2):n){
+  x[i] <- z[i] + 0.7 * z[i-1] + 0.6*z[i-s] + 0.42*z[i-s-1]
+}
+
+process_name <- "SARIMA(0,0,1,0,0,1)_12"
+par(mfrow = c(3,1))
+plot.ts(
+  x[1:2500],
+  main = paste(process_name, "simulation"),
+) 
+plot.ts(
+  x[12:120],
+  main = paste("The first 10 months of simulation", process_name),
+) 
+(acf(x, main = paste("ACF of", process_name, "simulation")))
+```
+
+Seasonality is not easy to identify at first glance, but it is quite clear when we zoom into the time series.
+
+When looking at the autocorrelation plot, we see the expected spikes at lag 1, 12 and 13, as we know by definition that $X_t$ depends on values at those lags. However, we also see a spike at lag 11, which can be explained if we take a deeper look at the theoretical autocorrelation function.
+
+#### Deriving ACF
+
+
+Remind we have the following $SARIMA(0, 0, 1, 0, 0, 1)_{12}$ model:
+
+$$
+X_t = Z_t + \theta_1 Z_{t-1} + \Theta_1 Z_{t-12} + \Theta_1 \theta_1 Z_{t-13}
+$$
+
+##### Autocorrelation at lag 0
+
+Let's start by estimating the autocovariance function at lag 0 (remember that, by definition, $Var[aX] = a^2 Var[X]$):
+
+$$
+\gamma(0) = cov(X_t, X_t) = Var[X_t] \\
+Var[X_t] = Var[Z_t] + Var[\theta_1 Z_{t-1}] + Var[\Theta_1 Z_{t-12}] + Var[\Theta_1 \theta_1 Z_{t-13}] \\
+\gamma(0) = \sigma_Z^2 + \theta_1^2 \sigma_Z^2 + \Theta_1^2 \sigma_Z^2 + \Theta_1^2 \theta_1^2 \sigma_Z^2 \\
+\gamma(0) = \sigma^2_z(\theta_1^2 + \Theta_1^2 + \theta_1^2 \Theta_1^2) \\
+\gamma(0) = (1 + \theta²)(1 + \Theta_1^2) \sigma_Z^2
+$$
+
+If we compute autocovariance function at lag 1, $\gamma(1) = cov(X_t, X_{t1})$. Recall:
+
+$$
+X_t =  Z_t + \theta_1 Z_{t-1} + \Theta_1 Z_{t-12} + \Theta_1 \theta_1 Z_{t-13} \\
+X_{-1} = Z_{t-1} + \theta_1 Z_{t-2} + \Theta_1 Z_{t-13} + \Theta_1 \theta_1 Z_{t-14} 
+$$
+
+As, by definition:
+
+$$
+Cov(X_t, X_{t-1}) = E[(X_t - E[X_t])(X_{t-1} - E[X_{t-1}])]
+$$
+
+And:
+
+$$
+E[X_t] = E[Z_t] + E[\theta_1 Z_{t-1}] + E[\Theta_1 Z_{t-12}] + E[\Theta_1 \theta_1 Z_{t-13}]
+$$
+As $E[Z_t]= 0$, then $E[X_t] = E[X_{t-1}] = 0$, so:
+
+$$
+Cov(X_t, X_{t-1}) = E[X_t X_{t-1}] 
+$$
+
+Then:
+
+$$
+Cov[X_t X_{t-1}] = E[(Z_t + \theta_1 Z_{t-1} + \Theta_1 Z_{t-12} + \Theta_1 \theta_1 Z_{t-13})(Z_{t-1} + \theta_1 Z_{t-2} + \Theta_1 Z_{t-13} + \Theta_1 \theta_1 Z_{t-14})]
+$$
+
+As $Z_t$ is i.id, the only contributions to the covariance are those values which belong to the same time step. Therefore:
+
+$$
+Cov[X_t X_{t-1}] = E[\theta_1 Z_{t-1} Z_{t-1} + \theta_1 \Theta_1² Z_{t-13}] \\
+$$
+
+As $E[Z_t Z_t] = \sigma_Z^2$:
+
+$$
+\gamma(1) = \theta_1 \sigma_Z^2 + \theta_1 \Theta_1^2 \sigma_Z^2 = \theta_1 \sigma_Z^2 (1 + \Theta_1^2)
+$$
+
+##### Autocorrelation at lag 1
+
+Then, we can compute autocorrelation at lag 1:
+
+$$
+\rho(1) = \frac{\gamma(1)}{\gamma(0)} = \frac{\theta_1 \sigma_Z^2 (1 + \Theta_1^2)}{(1 + \theta²)(1 + \Theta_1^2) \sigma_Z^2} = \frac{\theta_1}{(1 + \theta_1^2)}
+$$
+
+Note $\rho(1)$ is non-zero if $\theta_1$ is.
+
+Let's do the same for lag 2:
+
+$$
+\gamma(2) = E[(Z_t + \theta_1 Z_{t-1} + \Theta_1 Z_{t-12} + \Theta_1 \theta_1 Z_{t-13})(Z_{t-2} + \theta_1 Z_{t-3} + \Theta_1 Z_{t-14} + \Theta_1 \theta_1 Z_{t-15})] \\
+\gamma(2) = 0
+$$
+
+As $Z_t$ is i.id, $Z_i Z_j = 0$, and autocovariance at lag 2 is 0. Therefore:
+
+$$
+\rho(2) = \frac{\gamma(2)}{\gamma(0)} = 0
+$$
+
+##### Other autocorrelations
+
+It is easy to see that:
+
+$$
+\rho(i) = 0, i=2, 3, \ldots,10
+$$
+
+For autocorrelation at lag 11, we see there are contributions from terms belonging to the same timestep:
+
+$$
+\gamma(11) = E[(Z_t + \theta_1 Z_{t-1} + \Theta_1 Z_{t-12} + \Theta_1 \theta_1 Z_{t-13})(Z_{t-11} + \theta_1 Z_{t-12} + \Theta_1 Z_{t-23} + \Theta_1 \theta_1 Z_{t-24})] \\
+\gamma(11) = \theta_1 \Theta_1 \sigma_Z^2 \implies \rho(11) = \frac{\gamma(11)}{\gamma(0)} = \frac{\theta_1 \Theta_1 \sigma_Z^2}{(1 + \theta²)(1 + \Theta_1^2) \sigma_Z^2} =  \frac{\theta_1 \Theta_1}{(1 + \theta²)(1 + \Theta_1^2)} 
+$$
+
+As $\rho(11)$ is non-zero, this explains what we have oberved in the previous section. We can further check that $\rho(12) \neq 0$ and $\rho(13) \neq 0$ and that $\rho(j) = 0$ for all $j > 13$.
+
+
+### General autocorrelation formula
+
+For a $SARIMA(p, d, q, P, D, Q)_s$ model:
+
+$$
+\Phi_P(B^s) \phi_p(B) (1 - B^s)^D (1 - B)^d X_t = \Theta_Q(B^s) \theta_q(B) Z_t
+$$
+
+The generic autocorrelation function can be defined as a merge of the following coefficients:
+
+- $r_i$ as autocorrelation coefficients of regular $ARMA(p,q)$.
+- $R_i$ as autocorrelation coefficients o the seasonal $ARMA(P,Q)$.
+
+Then (extracted from [here](http://halweb.uc3m.es/esp/Personal/personas/amalonso/esp/TSAtema6.pdf)):
+
+$$
+\rho(j) = \frac{r_j \sum^{\infty}_{i=1} R_{si} (r_{si+j} + r_{si-j})}{1 + 2 \sum^{\infty}_{i=1} r_{si} R_{si}}
+$$

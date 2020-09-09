@@ -1,0 +1,119 @@
+---
+title: "R Notebook"
+---
+
+Time series as data collected through time. As we are sampling adjacent points
+in time, we naturally introduce correlation; so traditional inference 
+techniques may not work in this setting.
+
+# Asta package
+
+Let's plot a time series given exmaple data from package `astsa`:
+
+```{r}
+library(astsa)
+plot(jj,
+     type='o',
+     main='Johnson&Johnson quarterly earnings per share',
+     ylab='Earnings',
+     xlab='Quarters')
+```
+
+We can observe:
+
+- There is an increasing trend.
+- There are seasonal variations in the trend.
+- The seasonal variation is stronger in the early points.
+
+Some of these facts may violate the stationary **stationarity principle** (explained later).
+
+# Stationarity
+
+A **stationary** stochastic process is a stochastic proces whose properties do not change over time (i.e. joint probability distribuition does not change when shifted in time). Therefore, properties such as mean and variance should be constant over time. We say a time series is stationary when it can be modeled with a stationary stochastic process.
+
+A weaker form of stationarity, **weak stationarity** (which is the one usually used) only require:
+
+- The mean (i.e. first moment) and autocovariance function to not vary in time.
+- Variance (i.e. second moment) to be finite (i.e. it converges when sample size is big enough) and constant.
+
+The techniques for inference and analysis usually assume stationarity. However, most real time series are non-stationary. For those, we will need transformations in order to get stationary time series.
+
+Reference links: [Wikipedia](https://en.wikipedia.org/wiki/Stationary_process), [Quora](https://www.quora.com/What-does-finite-variance-mean-in-plain-English).
+
+# Random variable definition
+
+Random variable (i.e. discrete or continuous) definition:
+
+$$ X: S \rightarrow R $$
+
+Where $S$ is the sample space of the experiment. If we model our data as random variables and extract properties from it, we can infer meaningful properties from our data.
+
+Given a random variable (i.e. coin toss), an experiment (i.e. dataset with $n$ actual coin tosses) is a realization of the inifinte possible realizations of the random variable.
+
+# Stochastic processes
+
+Stochastic processes can be conceived as a collection of random variables at different time positions. For each time step, we might have different generating distribution. A time series can be defined as realization of a stochastic process (i.e. a sample of the infinite examples that can be generated from the stochastic process distribution). Therefore, properties of the generating stochastic process can provide insights from the actual data.
+
+# Autocovariance function
+
+The autocovariance function between elements at timesteps $t_1$ and $t_2$ is defined as:
+
+$$ \gamma(t_1, t_2) = Cov(X_{t_{1}}, X_{t_{2}}) = E[(X_{t_{1}} - \mu_{t_{1}})(X_{t_{2}} - \mu_{t_{2}})]$$
+
+Note that the autocovariance function for a timestep and itself is the variance:
+
+$$\gamma(t, t) = Cov(X_t, X_t) = E[(X_t - \mu_t)(X_t - \mu_t)] = Var(X_t) = \sigma^2$$
+
+We can review the autocovariance function to depend on the time lapse between the data elements:
+
+$$\gamma_k = \gamma(t, t + k) = Cov(X_t, X_{t+k})$$
+
+
+## Autocovariance coefficient
+
+
+Given a stationary time series, the $\gamma_k$ of its generating stochastic process can be approximated with the *autocovariance coefficient $c_k$*:
+
+$$\gamma_k = \gamma(t, t + k) \approx c_k$$
+
+Given a weakly stationary time series $X = \{x_1, x_2, ..., X_N\}$, its autocovariance coefficient at time $k$ can be computed as:
+
+$$c_k = \frac{\sum^{N-k}_{t=1} (x_t - \bar{x}) (x_{t+k} - \bar{x})}{N}$$
+
+Where:
+
+$$\bar{x} = \frac{\sum^{N}_{t=1}x_t}{N}$$
+
+### Autocovariance coefficient in R
+
+Let's compute the autocovariance coefficient in R for a purely random process:
+
+```{r}
+random_process = ts(rnorm(100))  # ts specifies temporal nature of the data
+(acf(random_process, type='covariance'))
+```
+
+The `acf`  function returns the autocovariance coefficients for different levels of $k$ (i.e. lag).
+
+# Autocorrelation function
+
+The autocorrelation function for lag $k$ is defined as:
+
+$$-1 \leq p_k = \frac{\gamma_k}{\gamma_0} \leq 1$$
+The autocorrelation coefficient estimate for a weak stationary time series can be computed as:
+
+$$r_k = \frac{c_k}{c_0} = \frac{\sum^{N-k}_{t=1}(x_t - \bar{x})(x_{t+k} - \bar{x})}{\sum^{N}_{t=1} (x_t - \bar{x})^2}$$
+
+
+## Autocorrelation coefficient in R
+
+Let's use the same random process from the exmaple above:
+
+```{r}
+# Surrounding with parenthesis we tell R to return the coefficients
+(acf(random_process, main='Correlogram of a purely random process'))
+```
+
+The correlogram is the plot of autocorrelation coefficients at different lags. Note that it always starts with $1.0$ as $r_0 = c_0 / c_0 = 1$.
+
+Dash blue lines define the limit of significant autocorrelation. As we know underlying stochastic process is random, any correlation that may be observed is spurious.

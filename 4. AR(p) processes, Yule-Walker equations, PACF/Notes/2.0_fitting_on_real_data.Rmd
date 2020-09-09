@@ -1,0 +1,137 @@
+---
+title: "Fitting recruitment data"
+---
+
+## The Data
+
+- Recruitment (i.e. number of fish) for 453 motnhs between 1950 and 1987.
+- Monthly time series.
+
+Dataset related to this book [see @timeseriesnalaysis].
+
+```{r}
+library(astsa)
+plot(rec, main = "Recruitment time series", col = "blue", lwd = 3)
+```
+
+We see the mean is constant, though we also observe some seasionality (which we are going to ignore here). Let's take a look at the ACF and PACF:
+
+```{r}
+par(mfrow=c(2, 1))
+acf(rec, type = "correlation", main = "Autocorrelation function for recruitment data")
+pacf(rec, main = "Autocovariance function for recruitment data")
+```
+
+We observe the PACF function has two significant peaks, which may indicate that the underlying process in an
+autoregressive process of order 2. sing the *parsimony principle*, we will select the simplest of the compellig 
+theories (i.e. we only have one, at this point) and try to find evidence to support it.
+
+So we are assuming our data comes from the following autoregressive process:
+
+$$
+X_t = Z_t + \hat{\phi}_0 + \hat{\phi}_1 X_{t-1} + \hat{\phi}_2 X_{t-2} \\
+Z_t \sim Normal(0, \sigma_Z^2)
+$$
+
+## Modelling the data
+
+Let's first center data around 0 and compute the sample autocorrelation vector $r$ (i.e. $\hat{b}$):
+
+```{r}
+p <- 2
+rec.centered <- rec - mean(rec)
+r <- acf(rec.centered, type = "correlation", plot=FALSE)$acf[2:(2+p-1)]
+r
+```
+
+
+Let's generate matrix $\hat{R}$:
+
+```{r}
+R.hat <- matrix(1, p, p)
+for (row in 1:p) {
+  for (col in 1:p) {
+    if (row != col){
+      R.hat[row, col] <- r[abs(row - col)]
+    }
+  }
+}
+R.hat
+```
+
+Then we can solve:
+
+$$
+\hat{R} \hat{\phi} = \hat{b}
+$$
+
+```{r}
+b.hat <- matrix(r, p, 1)
+phi.hat <- solve(R.hat, b.hat)
+phi.hat
+```
+
+Let's obtain now the estimate of the variance of $Z_t$:
+
+```{r}
+c0 <- acf(rec.centered, type = "covariance", plot=FALSE)$acf[1]
+var.hat <- c0 * (1 - t(b.hat) %*% phi.hat)
+var.hat
+```
+
+We have computed the $\phi$ coefficients for the following model:
+
+$$
+X_t - \mu  = Z_t + \hat{\phi_1} (X_{t-1} - \mu) + \hat{\phi_2} (X_{t-2} - \mu) + \ldots + \hat{\phi_p} (X_{t-p} - \mu) \\
+X_t = \mu + Z_t + \hat{\phi_1} (X_{t-1} - \mu) + \hat{\phi_2} (X_{t-2} - \mu) + \ldots + \hat{\phi_p} (X_{t-p} - \mu) \\
+X_t = \mu + Z_t + \sum^{p}_{i=1} \hat{\phi_i} (X_{t-i} - \mu) \\
+X_t = \mu + Z_t + \sum^{p}_{i=1} \hat{\phi_i} X_{t-i} - \mu \sum^{p}_{i=1} \hat{\phi_i} \\
+$$
+
+But we want to obtain the formula for the original time series:
+
+
+$$
+X_t = \hat{\phi}_0 + Z_t + \hat{\phi_1} X_{t-1} + \hat{\phi_2} X_{t-2} + \ldots + \hat{\phi_p} X_{t-p} \\
+X_t = \hat{\phi}_0 + Z_t + \sum^{p}_{i=1} \hat{\phi_i} X_{t-i}
+$$
+
+If we equal both right-hand side expressions, we get the equation to obtain $\phi_0$:
+
+$$
+\hat{\phi}_0 + Z_t + \sum^{p}_{i=1} \hat{\phi_i} X_{t-i} = \mu + Z_t + \sum^{p}_{i=1} \hat{\phi_i} X_{t-i} - \mu \sum^{p}_{i=1} \hat{\phi_i}\\
+\hat{\phi}_0 = \mu - \mu \sum^{p}_{i=1} \hat{\phi_i} \\
+\hat{\phi}_0 = \mu \left(1 - \sum^{p}_{i=1} \hat{\phi_i} \right)
+$$
+
+Let's compute it in $R$:
+
+```{r}
+theta.0 <- mean(rec) * (1 - sum(phi.hat))
+theta.0
+```
+
+We can then obtain the complete form of the model for the data:
+
+$$
+X_t = Z_t + 7.0333 + 1.3316 X_{t-1} - 0.4445 X_{t-2} \\
+Z_t \sim (0, 94.1713)
+$$
+
+## Bibliography
+
+---
+references:
+- id: timeseriesnalaysis
+  title: Time Series Analysis and Its Applications
+  author:
+  - family: Suhmway
+    given: Robert H.
+  - family: Stoffer
+    given: David S.
+  publisher: Springer-Verlag
+  isbn: 0387989501
+  type: book
+  issued:
+    year: 2005
+---

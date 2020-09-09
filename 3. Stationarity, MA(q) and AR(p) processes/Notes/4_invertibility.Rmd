@@ -1,0 +1,175 @@
+---
+title: "Invertibility of stochastic processes"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Introduction
+
+We will present two moving average processes of order 1, $MA(1)$, which have the same autocorrelation function.  This can be a problem when modeling time series, so we need to be able to force each autocorrelation function to map to a unique time series. In the next section, we will justify why one of the examples is more suited for modeling and which is the criteria we are going to use to discard one of them.
+
+## Model 1
+
+First $MA(1)$ model:
+
+$$X_t = Z_t + 2Z_{t-1}$$
+
+### Autocorrelation function
+
+We can compute the autocovariance function following the equation for moving average processes:
+
+$$\gamma(k) = \sigma^2_{Z} \sum^{q-k}_{i=0} \beta_{i} \beta_{i+k}$$
+
+This equation only applies when $k <= q$. Therefore, for all $k > q$, autocovariance is 0. Let's see what happens for $k = {0, 1}$:
+
+$$\gamma(0) = \sigma^2_{Z} \sum^{1-0}_{i=0} \beta_{i} \beta_{i} = \sigma^2_{Z} (1 · 1 + 2 · 2) = 5\sigma^2_{Z}$$
+
+$$\gamma(1) = \sigma^2_{Z} \sum^{1-1}_{i=0} \beta_{i} \beta_{i+1} = \sigma^2_{Z} (1 · 2) = 2\sigma^2_{Z}$$
+
+Autocovariance function can be written as:
+
+$$
+\gamma(k) = \begin{cases}
+\gamma(-k)    & \mbox{if } k < 0 \\
+5\sigma^2_{Z} & \mbox{if } k = 0 \\
+2\sigma^2_{Z} & \mbox{if } k = 1 \\
+0             & \mbox{if } k > 1 \\
+\end{cases}
+$$
+
+It is straightforward to compute autocorrelation function:
+
+$$
+p(k) = \frac{\gamma(k)}{\gamma(0)} =  \begin{cases}
+p(-k)    & \mbox{if } k < 0 \\
+1 & \mbox{if } k = 0 \\
+\frac{2}{5} & \mbox{if } k = 1 \\
+0             & \mbox{if } k > 1 \\
+\end{cases}
+$$
+
+## Model 2
+
+Second $MA(1)$ model:
+
+$$X_t = Z_t + \frac{1}{2} Z_{t-1}$$
+
+### Autocorrelation function
+
+We can recompute $\gamma(0)$ and $\gamma(1)$ for this model:
+
+$$\gamma(0) = \sigma^2_{Z} \sum^{1-0}_{i=0} \beta_{i} \beta_{i} = \sigma^2_{Z} (1 · 1 + \frac{1}{2} · \frac{1}{2}) = \frac{5}{4}\sigma^2_{Z}$$
+$$\gamma(1) = \sigma^2_{Z} \sum^{1-1}_{i=0} \beta_{i} \beta_{i+1} = \sigma^2_{Z} (1 · \frac{1}{2}) = \frac{1}{2}\sigma^2_{Z}$$
+
+Autocovariance function can be written as:
+
+$$
+\gamma(k) = \begin{cases}
+\gamma(-k)    & \mbox{if } k < 0 \\
+\frac{5}{4}\sigma^2_{Z} & \mbox{if } k = 0 \\
+\frac{1}{2}\sigma^2_{Z} & \mbox{if } k = 1 \\
+0             & \mbox{if } k > 1 \\
+\end{cases}
+$$
+
+And autocorrelation function:
+
+$$
+p(k) = \frac{\gamma(k)}{\gamma(0)} =  \begin{cases}
+p(-k)    & \mbox{if } k < 0 \\
+1 & \mbox{if } k = 0 \\
+\frac{2}{5} & \mbox{if } k = 1 \\
+0             & \mbox{if } k > 1 \\
+\end{cases}
+$$
+
+We see function matches the autocorrelation function for model 1.
+
+# Inverting through backward substitution
+
+Given the following generic moving average of order $q=1$:
+
+$$X_t = Z_t + \beta Z_{t-1}$$
+
+We can rewrite it as:
+
+$$
+Z_t = X_t - \beta Z_{t-1} \\
+Z_t = X_t - \beta(X_{t-1} - Z_{t-2}) \\
+Z_t = X_t - \beta X_{t-1} + \beta^2 Z_{t-2}
+$$
+If we keep expanding, we get:
+
+$$
+Z_t = X_t - \beta X_{t-1} + \beta^2 X_{t+2} - \beta^3 X_{t-3} + ... \\
+X_t = Z_t + \beta X_{t-1} - \beta^2 X_{t+2} + \beta^3 X_{t-3} + ...
+$$
+
+Note that we have expressed a moving average process into an infinite autoregressive model (which may or may not be convergent). We can do the same using backward shift operator $B$:
+
+$$X_t = Z_t + \beta B Z_t \\
+X_t = (1 + \beta B) Z_t \\
+X_t = \beta(B) Z_t
+$$
+
+Where $\beta(B) = (1+ \beta B)$. We can then find $Z_t$ by inverting the polynomial operator $\beta(B)$:
+
+$$
+Z_t = \beta(B)^{-1} X_t
+$$
+
+Let's see what the inverse of $\beta(B)$ looks like:
+
+$$
+\beta(B)^{-1} = \frac{1}{1 + \beta B} = 1 - \beta B + (\beta B)^2 - (\beta B)^3 + ...
+$$
+
+We can expand this as a geometric series where $\beta B$ is a complex number (i.e. $a=1$, $r=-\beta B$), so we can rewrite $Z_t$ as:
+
+$$
+Z_t = \beta(B)^{-1} X_t = X_t - \beta X_{t-1} + \beta^2 X_{t-2} - \beta^3 X_{t-3} + ... \\
+Z_t = \sum^{\infty}_{k=0} (-\beta)^k X_{t-k}
+$$
+
+As we have seen for series, this geometric expansion is only possible if if $|\beta| < 1$. We have successfully inverted the given moving average into an infinite autoregressive process. 
+
+# Invertibility definition
+
+Given: $X_t$ is a stochastic process and $Z_t$ are innovations (i.e. random pertubations, white noise), $X_t$ **invertible** if:
+
+
+$$Z_t = \sum^{\infty}_{k=0} \pi_k X_{t-k}$$
+
+Where $\sum^{\infty}_{k=0} |\pi_k|$ is absolutely convergent.
+
+
+## Back to first example
+
+Let's review whether this condition applies to presented previous models:
+
+- Model 1 is no invertible:
+
+$$
+X_t = Z_t + 2Z_{t-1} \\
+X_t = Z_t - 2 X_{-1} + 2^2 X_{t-1} - 2^3 X_{t-3} + ... \\
+X_t = \sum^{\infty}_{k=0} (-2)^k X_{t-k}
+$$
+
+So:
+
+$$\sum^{\infty}_{k=0} |\pi_k| = \sum^{\infty}_{k=0} 2^k,\ divergent $$
+
+- Model 2 is invertible:
+
+$$
+X_t = Z_t + \frac{1}{2} Z_{t-1} \\
+X_t = Z_t - \frac{1}{2} X_{t-1} + \left(\frac{1}{2}\right)^2 X_{t-2} - \left(\frac{1}{2}\right)^3 X_{t-3} + ... = \\
+X_t = \sum^{\infty}_{k=0} \left(-\frac{1}{2}\right)^k X_{t-k}
+$$
+
+So:
+
+$$\sum^{\infty}_{k=0} |\pi_k| = \sum^{\infty}_{k=0} \left(\frac{1}{2}\right)^k, \ convergent$$
+
+Second model can be expressed as a geometric series where $a=1$ and $r = -\frac{1}{2}$. As $|\frac{-1}{2}| < 1$, invertibility holds. Therefore, we would eliminate model 1 as we would prefer our model to have invertibility properties. This guarantees that observed autocorrelation function uniquely corresponds to given moving average process.

@@ -1,0 +1,231 @@
+---
+title: "Partial Autocorrelation"
+---
+
+We have seen controlled $MA(q)$ and $AR(p)$ examples where explicit coefficients have been given.
+Real world data, however, is not easy to be modelled. Partial autocorrelation function (PACF) will helps us with that.
+
+Note that, from now and on, we will try to stick to the [Tidyverse Style Guide for R](https://style.tidyverse.org/syntax.html#assignment-1).
+
+Before we start, let's install some of the packages needed for this notebook:
+
+```{r}
+install.packages("ppcor")
+install.packages("isdals")
+
+library(isdals)
+library(ppcor)
+```
+
+
+# Partial Correlation
+
+The partial correlation is the degree of association between two random variables when the effect of a set of controlling random variables has been removed.
+
+It is useful when we want to measure the correlation coefficient between variables and there is a confounding variable which is numerically related to those variables. When this happens, the correlation coefficient is misleading.
+
+Given variables $X$ and $Y$, partial correlation given a set of controllig variables $Z = \{Z_1, Z_2, \ ... \, Z_n\}$ is the correlation between:
+
+- $e_X$, which is the set of residuals from the linear regression of $X$ using $Z$.
+- $e_Y$, which is the set of residuals from the linear regression of $Y$ using $Z$.
+
+Partial correlation is then computed as:
+
+$$
+\hat{\rho}_{XY · Z} = corr[e_x, \ e_Y]
+$$
+
+Where $corr$ is the conventional correlation coefficient.
+
+## Partial correlation in R
+
+Let's compute the partial correlation in R by using the $bodyfat$ dataset:
+
+
+```{r}
+data(bodyfat)
+attach(bodyfat)
+pairs(cbind(Fat, Triceps, Thigh, Midarm))
+```
+
+We see *Tigh* and *Triceps* can be good predictors of *Fat* but they seem to be highly correlated:
+
+
+```{r}
+cor(cbind(Fat, Triceps, Thigh, Midarm))
+```
+
+
+The correlation between *Fat* and *Triceps* after removing the linear effects caused by *Thigh* can be estimated using the *pcor* command:
+
+
+```{r}
+pcor(cbind(Fat, Triceps, Thigh))
+```
+
+We see the correlation between *Fat* and *Triceps* measure (i.e. ~0.1750) is low when we remove the effect of *Thigh*. We can also manually compute it:
+
+```{r}
+Fat.hat = predict(lm(Fat ~ Thigh))
+Triceps.hat = predict(lm(Triceps ~ Thigh))
+cor((Fat - Fat.hat), (Triceps - Triceps.hat))
+```
+
+We can include multiple variables in the controlling set:
+
+```{r}
+pcor(cbind(Fat, Triceps, Thigh, Midarm))
+```
+
+We see that, when we also include *Midarm* in the controlling set, the partial correlation of *Fat* and *Triceps* also increases. Let's replicate the result manually:
+
+```{r}
+Fat.hat = predict(lm(Fat ~ Thigh + Midarm))
+Triceps.hat = predict(lm(Triceps ~ Thigh + Midarm))
+cor((Fat - Fat.hat), (Triceps - Triceps.hat))
+```
+
+## Partial Autocorrelation in timeseries
+
+Given we have a time series $X_t$, the partial autocorrelation function at lag $k$ (i.e. $\alpha(k)$), is the autocorrelation between $X_t$ and $X_{t+k}$ when the linear dependece of variables between $X_{t+1}$ and $X_{t+k-1}$ with $X_t$ has been removed. It is defined as::
+
+$$
+\Bigg\{
+  \begin{array}{ll}
+  \alpha(1) = corr(X_{t+1}, X_{t}) & k = 1 \\
+  \alpha(k) = corr(X_{t+k} - \hat{X}_{t+k}, X_t - \hat{X}_t) & k \ge 2
+  \end{array}
+$$
+
+Where:
+
+- $\hat{X}_t$ are the predictions of $X_t$ regressing on variables from $X_{t+1}$ to $X_{t+k-1}$.
+- $\hat{X}_{t+k}$ are the predictions of $X_{t+k}$ regressing on variables from $X_{t+1}$ to $X_{t+k-1}$.
+
+The partial autocorrelation function is a useful tool for identifying the order of an autoregressive process.
+
+## Partial autocorrelation in R
+
+### Example 1
+
+Let's remember, first, the general formula for autoregressive $AR(p)$:
+
+$$
+X_t = Z_t + \phi_1 X_{t-1} + \ ... \ + \phi_p X_{t-p}
+$$
+
+Let's simulate an $AR(p)$:
+
+$$
+X_t = Z_t + 0.6 X_{t-1} + 0.2 X_{t-2}
+$$
+
+Let's code it in R and plot the raw data, the ACF and the PACF:
+
+```{r}
+par(mfrow = c(3, 1))
+phi.ts1.1 <- 0.6
+phi.ts1.2 <- 0.2
+data.ts1 <- arima.sim(n = 500, list(ar = c(phi.ts1.1, phi.ts1.2)))
+
+main_plot1_title <- paste(
+  "AR(q=2) process with phi1=",
+  phi.ts1.1,
+  ", phi2=",
+  phi.ts1.2,
+  sep = ""
+)
+plot(data.ts1, main = main_plot1_title)
+acf(data.ts1, main = "Autocorrelation function")
+acf(data.ts1, type = "partial", main = "Partial Autocorrelation Function")
+```
+
+ACF for moving averages shows $q + 1$ statistical spikes (i.e. including spike at $0$). However, the ACF of autoregressive processes is hard to interpret
+and even harder to be able to extract insights about order of the process. We can see there is a relation between the significant spikes in the PACF and
+the order of the AR process.
+
+Let's do the same for the following $AR(3)$:
+
+$$
+X_t = Z_t + 0.9 X_{t-1} - 0.6 X_{t-2} + 0.3 X_{t-3}
+$$
+
+```{r}
+par(mfrow = c(3, 1))
+phi.ts2.1 <- 0.9
+phi.ts2.2 <- -0.6
+phi.ts2.3 <- 0.3
+data.ts2 <- arima.sim(n = 500, list(ar = c(phi.ts2.1, phi.ts2.2, phi.ts2.3)))
+
+main_plot2_title <- paste(
+  "AR(q=3) process with phi1=",
+  phi.ts2.1,
+  ", phi2=",
+  phi.ts2.2,
+  ", phi3=",
+  phi.ts2.3,
+  sep = ""
+)
+plot(data.ts2, main = main_plot2_title)
+acf(data.ts2, main = "Autocorrelation function")
+acf(data.ts2, type = "partial", main = "Partial Autocorrelation Function")
+```
+
+We confirm that there are as many significant spikes in the PACF plot as the order of the AR process generating the data.
+
+### Beveridge Wheat Price dataset
+
+First, let's download the data:
+
+```{r}
+download.file(
+  "https://people.sc.fsu.edu/~jburkardt/datasets/time_series/beveridge_wheat.txt",
+  "wheat_price_dataset.txt"
+)
+```
+
+Then let's load it and transform it. We are going to grab a subset of the data and create a moving average, which will be shown in red
+in the plot:
+
+```{r}
+beveridge <- read.table("wheat_price_dataset.txt")
+beveridge.ts = ts(beveridge[, 2], start = 1500)
+plot(beveridge.ts, ylab = "price", main = "Beveridge Wheat Price data")
+
+# Create moving average using 15 points up and down each point
+beveridge.ma = filter(beveridge.ts, filter = rep(1/31, times = 31), sides = 2)
+lines(beveridge.ma, col = "red")
+```
+
+Beveridge wanted to get a stationary dataset by scaling the original dataset by the moving average computed. Let's reproduce this:
+
+```{r}
+par(mfrow = c(3, 1))
+beveridge.scaled_ts = beveridge.ts / beveridge.ma
+
+plot(beveridge.scaled_ts, ylab = "Scaled price", main = "Scaled Beveridge data")
+
+# na.omit removes the empty data at the beggining and end of the moving average
+
+acf(na.omit(beveridge.scaled_ts),
+    main = "Autocorrelation function for Scaled Beveridge data")
+
+acf(na.omit(beveridge.scaled_ts),
+    type = "partial",
+    main = "Autocorrelation function for Scaled Beveridge data")
+```
+
+
+We see:
+
+- Scaled data seems relatively stationary (though there may be seasonality, which does not concerns us now).
+- PACF has two spikes, which may be evidence that we are dealing with a second order process.
+
+R has a built-in function called $ar$ which provides the autoregressive $\phi$ coefficients and the order of
+the underlying process given a time series and a maximum order to consider:
+
+```{r}
+ar(na.omit(beveridge.scaled_ts), order.max = 5)
+```
+
+We see the function comes up with a process of order two, which we already derived from the PACF.

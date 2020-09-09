@@ -1,0 +1,117 @@
+---
+title: "ARIMA processes"
+---
+
+Reminder of stationarity and invertibility of ARMA processes.
+
+Real world data are usually not be stationary.
+
+We wan to remove the trend before fitting an ARMA model. We can do that using the difference operator
+
+$$
+\nabla = 1 - B \implies \nabla X_t = (1 - B) X_t = X_t - X_{t-1}
+$$
+
+A process $X_$ is an autoregressive integrated moving average of order $(p,d,q)$ (i.e. $ARIMA(p,d,q)$) if it has the following form:
+
+$$
+Y_t := \nabla^d X_t = (1 - B)^d X_t
+$$
+
+Where:
+
+- $Y_t$ is $ARMA(p,q)$.
+- $X_T$ is $ARIMA(p,d,q)$
+
+An ARIMA process can be written in the polynomial notation as:
+
+$$
+\phi(B) \nabla^2 X_t = \theta(B) Z_t
+$$
+
+Usually, we do not require much differencing, as overdifferencing may introduce artificial dependency which did not exist before. ACF may suggest whether differencing is needed when it decays very slowly.
+
+
+## Ljung-Box Q-statistic
+
+We are going to be able to test whether autocorrelation is present in a time series, so:
+
+- We can assume autocorrelation exists before modeling a time series.
+- We can ensure that the residuals of the model are not correlated.
+
+### The Q* statistic
+
+The objective of this section is to learn a decision rule to test the null hypothesis that several autocorrelation coefficients are zero.
+
+We sill start with the Portmanteau statistic (Box and Pierce, 1970):
+
+$$
+Q*(m) = T \sum^{m}_{l=1} r_l^2
+$$
+
+where:
+
+- $T$ is the length of the time series.
+- $r_i$ is the $i$th sample autocorrelation coefficient.
+
+The null hypothesis of the statistic is the following:
+
+$$
+H_0: \rho(1) = \rho(2) = \rho(3) = \ldots = \rho(m) = 0
+$$
+
+Which is that there is not autocorrelation between lab 1 and $m$.
+
+While the alternative hypothesis is:
+
+$$
+H_1: \rho(i) \neq 0, i \in \{1, 2, \ldots, m\}
+$$
+
+Which is that at least one of the autocorrelation coefficients up to lag $m$ is non-zero.
+
+Box and Pierce showed that under i.id conditions on $\{r_t\}$, $Q*$ asymptotically has a Chi-Squared distribution with $m$ degrees of freedom:
+
+$$
+Q*(m) \sim \chi^2(df = m)
+$$
+
+### Ljung-Box statistic
+
+Later on, Ljung and Box (1978) modified the statistic in order to increase its statistical power on finite samples, by defining:
+
+$$
+Q(m) = T(T + 2) \sum^{m}_{l=1} \frac{r_l^2}{T-l}
+$$
+
+The reject hypothesis can be rejected if:
+
+$$
+Q(m) > \chi^2_{\alpha}
+$$
+
+Where $\chi^2_{\alpha}$ is the $100(1-\alpha)$-th quantile of the $Chi^$ distribution with $m$ degress of freedom. That is, when the $p$-value is sufficiently small:
+
+$$
+p < alpha
+$$
+
+Where $alpha$ is the significance level.
+
+The value of $m$ is usually taken as:
+
+$$
+m \approx ln(T)
+$$
+
+Where $T$ is the length of the series.
+
+#### Box test in R
+
+In R, we can perform the Ljung-Box test by typing:
+
+```{r}
+n <- 100000
+arima.sim(list(order = c(1, 0, 1), ar = 0.5, ma = 0.2), n = n)
+Box.test(data, lag = log(n), type = "Ljung-Box")
+```

@@ -1,0 +1,193 @@
+---
+output: 
+  html_document:
+    number_sections: true
+---
+
+# Fitting ARIMA with real data
+
+## About the data
+
+The data corresponds to the daily number of birth rates in California during 1959. Dataset created by Rob Hundman, Professor of Statistics at Monash University in Australia.
+Dataset is available in the course or through [Kaggle](https://www.kaggle.com/dougcresswell/daily-total-female-births-in-california-1959?select=daily-total-female-births-CA.csv). Note link in the course does not work anymore.
+
+Let's read the data:
+
+```{r}
+birth.data <- read.csv("daily-total-female-births-in-cal.csv")
+
+# Rename column so it has a more suitable name
+colnames(birth.data)[2] <- "Births"
+
+# Use date format for dates
+birth.data$Date <- as.Date(birth.data$Date, "%Y-%m-%d")
+```
+
+Let's take a look at the data:
+
+```{r}
+plot(
+  birth.data$Births ~ birth.data$Date,
+  type = "l",
+  main = "Daily female births in California, 1959",
+  xlab = "Date",
+  ylab = "Number of births"
+)
+```
+
+
+## Modeling guide
+
+The following steps will be used in this notebook and can serve as a guide for dealing with real world datasets:
+
+1. Check for autocorrelations using Ljung-Box test.
+1. Use differencing, if needed, to remove trend.
+1. Further transform data if heteroscedasticity found (e.g. variance variability).
+1. Find candidates for order of moving average part and autoregressive part.
+1. Evaluate candidates.
+1. Estimate coefficients using R.
+
+## Modeling 
+
+### Check for autocorrelations
+
+Before starting, if we are modeling the timeseries as an autoregressive process, we need to find evidence of that. Let's perform a *Ljung-Box* test to see whether we can reject the null hypothesis, that states that *all autocorrelation coefficients up to lag $m$ are zero$.
+
+```{r}
+Box.test(
+  birth.data$Births,
+  lag = log(length(birth.data$Births)),
+  type = "Ljung-Box"
+)
+```
+
+As p-value is very small, we can reject the null hypothesis with a confidence $> 99$. Therefore, we can assume with high confidence that at least one of the autocorrelation coefficients is different from zero.
+
+### Remove trend, if any
+
+At the top of the document we saw how a trend is visible in the data. Let's visualize the differenced time series:
+
+```{r}
+plot(
+  diff(birth.data$Births) ~ birth.data$Date[1:length(birth.data$Date) - 1],
+  type = "l",
+  main = "Daily female births in California, 1959",
+  xlab = "Date",
+  ylab = "Number of births"
+)
+```
+
+We see the differenced time series resembles a white noise process. Let's store the differenced time series:
+
+```{r}
+birth.data.diff <- data.frame(
+  Date = birth.data$Date[1:length(birth.data$Date) - 1],
+  Births = diff(birth.data$Births)
+)
+```
+
+Let's re-run the *Ljung-Box* test on the differenced data:
+
+```{r}
+Box.test(
+  birth.data.diff$Births,
+  lag = log(length(birth.data.diff$Births)),
+  type = "Ljung-Box"
+)
+```
+
+We see the p-value keeps being very small, so we can keep rejecting the null hypothesis of the test.
+
+### Find order candidates
+
+
+```{r}
+par(mfrow = c(2, 1))
+acf(birth.data.diff$Births, main = "ACF of differenced data", type = "correlation")
+pacf(birth.data.diff$Births, main = "PACF of differenced data")
+```
+
+The autocorrelation plot shows three peaks: one is the peak at lag 0, which is always 1, another one is at lag 1 and there is a peak at lah 21. If we consider the peak at 21 as an outlier, this means the moving average part of the ARIMA model has order one or two.
+
+On the othe hand, we see there are significant peaks up to lag 7 in the partial autocorrelation plot. This means the autoregressive part of the ARIMA model could have an order around 7 (note that we have also considered the peak at 20 to be an outlier).
+
+## Evaluate candidates
+
+For each candidate to test, we are going to collect:
+
+- AIC value: so we can have a trade-off between the goodness of fit of the model and its complexity.
+- SSE: so we have an additional measure of the absolute fit of the model.
+- Ljung-Box p-value: to make sure the residuals are distributed randomly and they to not present autocorrelations.
+
+```{r}
+# We will use ARIMA models with differencing of one
+# as we differenced once the original data 
+differencing <- 1
+
+ps <- c(0, 6, 7, 8)
+qs <- c(0, 1, 2)
+n_models <- length(ps) * length(qs)
+
+# Create vectors to store results
+names <- NULL
+sses <- NULL
+aics <- NULL
+p_values <- NULL
+
+i <- 1
+for (p in ps) {
+  for (q in qs) {
+    model <- arima(birth.data$Births, order = c(p, differencing, q))
+    sses[i] <- sum(model$residuals^2)
+    aics[i] <- model$aic
+    names[i] <- paste("ARIMA(", p, ",1,", q, ")", sep = "")
+    p_values[i] <- Box.test(
+      model$residuals,
+      lag = log(length(model$residuals)),
+      type = "Ljung-Box"
+    )$p.value
+    i <- i + 1
+  }
+}
+```
+
+We can create a data frame to visualize the results:
+
+```{r}
+results <- data.frame(
+  name = names,
+  AIC = aics,
+  SSE = sses,
+  pvalue = p_values
+)
+
+format(results[order(results$AIC), ], scientific = FALSE)
+```
+
+We can observe that the lowest value of AIC is for the ARIMA model with no autoregressive component and moving average of order 2. Note that there are other models with lower sum of squares error (e.g. $ARIMA(7, 1, 2)$). However, they provide better fit by substantially increasing the complexity of the model (i.e. $ARIMA(0, 1, 2)$ has 2 parameters and the constant, while $ARIMA(7, 1, 2)$ has 9 parameters plus constant, which is 5 times more).
+
+Note that most of the models present high p-values for the *Ljung-Box* test on their residuals, which means that, we can assume that there is not autocorrelation in their residuals.
+
+Giving the presented evidence, we select $ARIMA(0, 1, 2)$ model.
+
+### Estimate coefficients
+
+```{r}
+library(astsa)
+sarima(birth.data$Births, p = 0, d = 1, q = 2)
+```
+
+The `sarima` commands provides the coefficients for the moving average coefficients (i.e. $-0.8511$, $-0.1113$). For each coefficient, a p-value is provided for the significance of each coefficient. Note that coefficients of the moving averages are significant in the level of $0.05$ while constant is not (though we can keep it).
+
+It also provides the $sigmna^2_Z$ for the noise, which is $49.08$.
+
+
+### Conclusions
+
+We have estimated that the best model for the female births in California ($X_t$) during 1959 is:
+
+$$
+(1 - B) X_t = 0.015 + Z_t - 0.8511 Z_{t-1} - 0.1113 Z_{t-2} \\
+X_t = 0.015 + X_{t-1} + Z_t - 0.8511 Z_{t-1} - 0.1113 Z_{t-2} \\
+Z_t \sim N(0, 49.08)
+$$

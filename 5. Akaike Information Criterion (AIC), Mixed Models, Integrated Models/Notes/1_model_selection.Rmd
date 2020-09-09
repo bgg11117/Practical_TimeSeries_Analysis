@@ -1,0 +1,74 @@
+---
+title: "Model selection"
+output: html_notebook
+---
+
+## R-squared recap
+
+The *R-squared* (i.e. $R^2$, coefficient of determination) represents the proportion of the variance in the target variable that can be explained from the independent variable. Higher $R^2$ values represent better fits of the data.
+
+When multiple predictors are used, *Multiple R-squared* can be used. This quantifies the variance from the dependent variable that can be explained by all the independent ones. Therefore, this coefficient increases with the number of predictors increases. In order to penalize models with higher complexity, the *Adjusted R-squared* can be used.
+
+
+## Akaike Information Criteria
+
+The Akaike Information criterion (AIC) is a measure of the quality of a statistical model given a set of data. It is related to information theory and the amount of information lost by using a certain model to represent a process.
+
+It provides a framework to compare different models under the same sample of data. However, it gives no information about the absolute quality of the model. The AIC deals with the trade-off between overfitting and underfitting by penalizing the complexity of the model.
+
+As other measures such as the sum of squares (i.e. SSE) , the smaller the AIC, the better fit of a model.
+
+The general equation for the AIC is:
+
+$$
+AIC = 2k - 2ln(\mathcal{L^{*}})
+$$
+
+Where:
+
+- $\mathcal{L^*}$ is the maximum likelihood for the model.
+- $k$ is the number of parameters of the model.
+
+A simpler formula can also be used:
+
+$$
+AIC = log(\delta^2) + \frac{n + 2 p}{n}, \ \delta^2 = \frac{SSE}{n}
+$$
+
+Where:
+
+- $\delta^2$ is a measure of the estimated variability
+
+### Example
+
+Let's simulate the following second-order autoregressive process:
+
+$$
+X_t = Z_t + 0.7 X_{t-1} - 0.2 X_{t-2}
+$$
+
+```{r}
+set.seed(43)
+data <- arima.sim(list(order = c(2, 0, 0), ar = c(0.2, -0.2)), n = 2000)
+par(mfrow = c(1, 2))
+acf(data, main = "AR(2) ACF")
+acf(data, type = "partial", main = "AR(2) PACF")
+```
+
+
+The PACF shows that we are probably dealing with a second or third order autoregressive process. However, extracting the order of a process through the PACF is very subjective and we need a numerical approach in order to take informated decisions.
+
+We can estimate the coefficients of a model given the order, using the following command:
+
+```{r}
+model <- arima(data, order = c(2, 0, 0), include.mean = FALSE)
+model
+```
+
+
+### Extra: computing SSE in R
+
+```{r}
+sse <- sum(resid(model)^2)
+sse
+```

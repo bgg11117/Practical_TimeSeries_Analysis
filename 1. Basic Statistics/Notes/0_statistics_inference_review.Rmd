@@ -1,0 +1,100 @@
+---
+title: "Week 1 - Statistics Inference Review"
+---
+
+# Boxplots
+
+## Review on boxplots
+
+![](boxplot.png)
+[Image source](Source: https://towardsdatascience.com/understanding-boxplots-5e2df7bcbd51)
+
+## Using boxplots in R
+
+We will be using the sleep dataset for this exmaple.
+
+```{r}
+plot(extra~group, data=sleep, main='Extra Sleep in Gosset Data by Group')
+attach(sleep)  # allow using "sleep.extra" as "extra"
+extra.1 = extra[group == 1]
+extra.2 = extra[group == 2]
+```
+
+
+It seems that the second group has a clearly higher median. Let's tets the Hypothesis.
+
+
+# Hypothesis testing
+
+
+The hypothesis here are:
+
+- $H_0$: mean response same for both drugs.
+
+$$H_0: \mu_{drug_1}  \mu_{drug_2} \equiv \mu_{diff} = 0$$
+
+- $H_1$: mean response is not the same for both drugs.
+
+$$H_1: \mu_{drug_1}  \mu_{drug_2} \equiv \mu_{diff} \neq 0$$
+
+```{r}
+t.test(extra.1, extra.2, paired=TRUE, alternative="two.sided")
+```
+
+  - Use paired=TRUE when the same item/group is tested twice.
+  - Use two-sided, as we assume there is no evidence one behaves better than the other.
+  
+**Note that the t-test assumes the differende between groups is normally distributed.**
+
+Results show:
+
+  - $t$ statistic: $-4.06$ (robust value).
+  
+  - $df$ (i.e. degrees of freedom): 9 (i.e. $participants - 1$).
+  
+  - $p_{value}$ is $0.0028$ (i.e. less than typical $\alpha$).
+  
+  - We can reject $H_0$.
+
+Descriptions:
+
+- $\alpha$ is the probability of rejecting a true null hypothesis **(Type I error)**. It is typicall set to $0.05$ or $0.01$.
+
+- $p_{value}$ is the likelihood of seeing the data under the null hypothesis. 
+
+- $t$ statistic is computed as:
+
+  $$t = \frac{\bar{d} - 0}{s_d / \sqrt{n}}$$
+  
+  where:
+    - $\bar{d}$ is the difference between the means of the groups. We compare it with the null hypothesi value of the difference being 0 (i.e. $\bar{d} - 0$).
+    - $s_d$ is the standard deviation of the differences (i.e. `sd(extra-1 - extra.2)`).
+    - $n$ is the sample size.
+    - Denominator gives a measure of variability.
+
+
+Confidence interval of where the actual mean difference should be:
+
+  $$Form: estimate \pm tableValue * estimatedStandardError$$
+
+So, in the example:
+
+  $$\bar{d} \pm t_{\alpha/2} \ s_d/\sqrt{n}$$
+
+where:
+
+  - $estimatedStandardError = stdOfDifference / \sqrt{n}$
+  
+  - Estimate is the computed mean difference.
+  
+  - $tableValue$ is the $t$ statistic at $\alpha/2$ (i.e. two-sided test). This value can be obtained in R as: `qt(x=0.975, df=9)`.
+
+
+## Hypothesis test framework
+
+  1. State null and alternatiev hypothesis.
+  1. Clearly define terms (i.e. variables).
+  1. Decide upon a significance level $\alpha$.
+  1. Compute a test statistic (e.g. $z$, $t$, $\chi^2$, $F$).
+  1. Find $p_{value}$ for the corresponding statistic (i.e. left, right or two-sided).
+  1. Conclusion: Reject or do not reject (i.e. usually we do not "accept") $H_0$ according to $p_{value}$ and $\alpha$.

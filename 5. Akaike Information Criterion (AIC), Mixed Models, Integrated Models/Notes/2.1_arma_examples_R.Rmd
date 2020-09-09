@@ -1,0 +1,124 @@
+---
+title: "ARMA estimation in R"
+output: html_notebook
+---
+
+First, we install the forecast package:
+
+```{r}
+# Go to "Tools" -> "Global Options" and select another CRAN mirror, if error
+# It required installing 'libcurl4-openssl-dev' for me
+install.packages("forecast")
+```
+
+
+## Data visualization
+
+We are going to use the `discoveries` data. Let's visualize it first:
+
+```{r}
+plot(discoveries, main = "Major scientific discoveries per year")
+
+# stripchart as alternative to boxplot for small samples
+stripchart(
+  discoveries,
+  method = "stack",
+  offset = 0.5,
+  at = 0.15,
+  pch = 19,
+  main = "Number of discoveries",
+  xlab = "Discoveries per year",
+  ylab = "Frequency"
+)
+```
+
+We see it does not look like random noise and some patterns can be seen. Before diving into the ACf and PACF, let's review the following table, from @tanalysis:
+
+![](acf_table.png)
+
+The information on the table summarizes what we would expect from watching ACf and PACF for $AR(p$, $MA(q)$ and $ARMA(p,q)$ models and may help us determine the order of the process. However, in real world datasets, usually this advice is hard to apply as interpretation becomes ambiguous.
+
+Let's have a look now at PACF and ACF of `discoveries`:
+
+
+```{r}
+par(mfcol = c(2,1))
+acf(discoveries, main = "ACF for discoveries data")
+acf(discoveries, type = "partial", main = "PACF for discoveries data")
+```
+
+We see ACf has at least two significant spikes, while third and forth value may also be considered as significant. On the other hand, we see a significant spike in the PACF, while the second value may also be considered. Therefore, there are many candidates for the underlying generating process. We are going to approximate the coefficients for each of the candidates and assess its quality by computing their AIC.
+
+## Model selection
+
+Let's try with different combinations of values $p$ and $q$:
+
+```{r}
+for (p in 0:3) {
+  for (q in 0: 3) {
+    aic <- arima(discoveries, order = c(p, 0, q))$aic
+    print(paste("AIC for p=", p, " and q=", q, " is ", aic, sep = ""))
+  }
+}
+```
+
+Two lowest values are:
+
+- $ARMA(p=1, q=1)$ with AIC $\sim 440.20$
+- $ARMA(p=3, q=2)$ with AIC $\sim 439.93$
+
+Given the two values are so close, we would go for the simpler model here, wich is the one with $p=1$ and $q=1$.
+
+## Automatic model selection
+
+Using the `forecast` package, we can automatically get the best coefficients for each model using the `auto.arima` function. This method uses, by default:
+
+- Differencing for stationarity. As we do not see any trend in the data, we disable it.
+- Approximating for speeding up computations when time series are long (i.e. longer than 150 values). In this case, approximation is not triggered as `discoveries` dataset is 100 values long.
+
+```{r}
+library(forecast)
+auto.arima(
+  discoveries,
+  d = 0,  # Disable differencing
+)
+```
+
+We see we get the same setting we computed manually before.
+
+Note that we can choose the best model according to other criterias by changing the `ic` parameter. For using the best model according to the Bayesian Information Criteria, we can use:
+
+```{r}
+auto.arima(
+  discoveries,
+  d = 0,  # Disable differencing
+  ic = "bic"
+)
+```
+
+And for corrected AIC (useful for small datasets):
+
+```{r}
+auto.arima(
+  discoveries,
+  d = 0,  # Disable differencing
+  ic = "aicc"
+)
+```
+
+In all cases, we get the same setting.
+
+---
+references:
+- id: tanalysis
+  title: Time Series Analysis and Its Applications
+  author:
+  - family: Shumway
+    given: Robert H.
+  - family: Stoffer
+    given: David S.
+  DOI: 10.1007/978-3-319-52452-8
+  publisher: Springer International Publishing
+  issued:
+    year: 2017
+---

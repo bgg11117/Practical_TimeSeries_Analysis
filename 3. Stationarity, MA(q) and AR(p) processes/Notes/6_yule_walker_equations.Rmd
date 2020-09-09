@@ -1,0 +1,327 @@
+---
+title: "Yule Walker equations"
+---
+
+## Solving difference equations
+
+### General case
+
+We may be presented with sequence of order $k$:
+
+$$
+a_n = \beta_1 a_{n-1} + \beta_2 a_{n-2} \ + \ ...\  + \ \beta_k a_{n-k} 
+$$
+
+Then, we can formulate the following characteristic equation:
+
+$$
+\lambda^k - \beta_1 \lambda^{k-1} + \beta_2 \lambda_{k-2} \ + \ ...\  + \ \beta_{k-1} \lambda - \beta_k = 0
+$$
+
+Given the $k$ distinct solutions (i.e. comnplex or real) for the characteristic equation $\lambda_1, \lambda_2, ..., \lambda_k$, then we can write:
+
+$$
+a_n = c_1 \lambda_1^n + c_2 \lambda_2^n \ + \ ... \ + \ c_n \lambda_n^n = \sum^{k}_{i=0} c_i \lambda_i^n
+$$
+
+Coefficients $c_i$ are determined using initial values (e.g. $a_0, a_1$),
+
+
+### Example 1: Second order difference equation
+
+Given the following example:
+
+$$
+a_n = 5 a_{n-1} - 6_{n-2}
+$$
+
+We want to get the solution for $a_n = \lambda^n$, which, for the previous problem, would be:
+
+$$
+\lambda^n = 5\lambda^{n-1} - 6\lambda^{n-2}
+$$
+
+The previous equation can be rewritten to generate what is called as *auxiliary equation*:
+
+$$
+\lambda^2 - 5\lambda + 6 = 0
+$$
+
+This equation has roots $\lambda_1 = 2, \lambda_2 = 3$. $a_n$ is going to be a liner combination of these two solutions:
+
+$$
+a_n = c_1 \lambda_1^n+c_2 \lambda_2^n = c_1 2^n + c_2 3^n
+$$
+Given we have some initial conditions, such as:
+
+$$
+a_0 = 3, a_1 = 8
+$$
+
+We can obtain $c_1,c_2$ by solving the following linear system:
+
+$$
+\Bigg\{
+  \begin{array}{l}
+  c_1 + c_2 = 3 \\
+  2_{c1} + 3_{c2} = 8
+  \end{array}
+$$
+
+Which have solutions $c_1 = 1, c_2 = 2$. Then, we can rewrite the previous second ordere difference equation:
+
+
+$$
+a_n = 5 a_{n-1} - 6_{n-2}
+$$
+
+as:
+
+$$
+a_n = 2^n + 2 · 3^n
+$$
+
+### Example 2: Fibonacci
+
+Fibonnaci sequence can be recursively defined as:
+
+$$
+a_n = a_{n-1} + a_{n-2}
+$$
+
+We can define the characteristic equation as:
+
+$$
+a_n - a_{n-1} - a_{n-2} = 0 \\
+\lambda^2 - \lambda - 1 = 0
+$$
+
+Solutions of the characteristic equation are:
+
+$$
+\lambda_1 = \frac{1 - \sqrt{5}}{2} \ , \lambda_2 = \frac{1 + \sqrt{5}}{2}
+$$
+
+We can rewrite $a_n$ in terms of the $k$ solutions of the characteristic equation:
+
+$$
+a_n = c_1\lambda_1^n + c_2 \lambda_2^n = \sum^{k}_{i=0} c_i \lambda_i^n
+$$
+
+Knowing $a_0= 1, \ a_1=1$, we can write $a_0$ and $a_1$ as:
+
+$$
+a_0 = c_1 \left(  \frac{1 - \sqrt{5}}{2} \right)^0 + c_2 \left(  \frac{1 + \sqrt{5}}{2} \right)^0 = c_1 + c_2 = 1
+$$
+
+
+$$
+a_1 = c_1 \left(  \frac{1 - \sqrt{5}}{2} \right) + c_2 \left(  \frac{1 + \sqrt{5}}{2} \right) = 1
+$$
+
+We can solve $c_1$ and $c_2$ by solving the linear system:
+
+$$
+\Bigg\{
+  \begin{array}{l}
+  c_1 + c_2 = 1 \\
+  c_1 \left(  \frac{1 - \sqrt{5}}{2} \right) + c_2 \left(  \frac{1 + \sqrt{5}}{2} \right) = 1
+  \end{array}
+$$
+
+## Yule-Walker equations
+
+The objective of this section is to present the **Yule-Walker equations, which allows us to define the Autocorrelation Function (ACF) for an autoregressive stochastic process**.
+
+### Steps
+
+1. Assume/prove stationarity.
+1. Take expectations at both sides of the AR equation.
+1. Take product of the expectations of the AR model with $X_{n-k}$.
+1. Express previous expectations in terms of covariance, $\gamma(k)$.
+1. Express covariance-based equation in terms of correlation (Yule-Walker equation).
+1. Solve Yule-Walker equations difference equation.
+
+### Step-by-step example
+
+Given the following $AR(2)$ process:
+
+$$
+X_t = \phi_1 X_{t-1} + \phi_2 X_{t-2} + Z_t
+$$
+
+
+#### 1- Assume/prove stationarity
+
+Let's use an example for this step:
+
+$$
+X_t = \frac{1}{3} X_{t-1} + \frac{1}{2} X_{t-2} + Z_t
+$$
+
+We can obtain $\phi(B)$ as:
+
+$$
+X_t - \frac{1}{3} X_{t-1} - \frac{1}{2} X_{t-2} = Z_t \\
+(1 - \frac{1}{3} B - \frac{1}{2} B^2) X_t = Z_t \\
+\phi(B) X_t = Z_t \implies \phi(B) = 1 - \frac{1}{3} B - \frac{1}{2} B^2
+$$
+
+Roots for $\phi(B)$, where $B$ interpreted as a real number, are:
+
+$$
+B_1  = \frac{-2 - \sqrt{76}}{6}, \ B_2 = \frac{-2 + \sqrt{76}}{6}
+$$
+
+Which both lie outside unit circle in $\mathbb{R}^2$. Therefore, process is stationary.
+
+#### 2- Take expectations
+
+Given $E(X_t) = \mu$, then:
+
+$$
+E[X_t] = \phi_1 E[X_{t-1}] + \phi_2 E[X_{t-2}] + E[Z_t]
+$$
+
+As $E[Z_t] = 0$, we can extract that $\mu=0$:
+
+$$
+\mu = \phi_1 \mu + \phi_2 \mu \implies \mu=0
+$$
+
+#### 3- Multiply both sides with k lagged version
+
+Let's multiply both sides of the expectations equation with $X_{t-k}$:
+
+$$
+E[X_t E_{t-k}] = \phi_1 E[X_{t-1}X_{t-k}] + \phi_2 E[X_{t-2} X_{t-k}] + E[Z_t X_{t-k}]
+$$
+
+#### 4- Express in terms of covariance function
+
+Assuming there is no covariance contribution between $Z_t$ and $X_t$ (i.e. $E[X_{t-k} Z_t] = 0$) and knowing that:
+
+$$
+\gamma(-k) = E[X_t X_{t-k}]
+$$
+We can rewrite the equation from previous step as:
+
+$$
+\gamma(-k) = \phi_1 \gamma(-k+1) + \phi_2 \gamma(-k+2) \\
+$$
+Since for all $k$, $\gamma(k) = \gamma(-k)$, then:
+
+$$
+\gamma(k) = \phi_1 \gamma(k-1) + \phi_2 \gamma(k-2) \\
+$$
+
+#### 5-Yule-Walker equation
+
+If we divide the previous equation by $\gamma(0) = \sigma_x^2$, we get an equation in terms of correlation $\rho$, which is the set of equations called **Yule-Walker equations**:
+
+$$
+\rho(k) = \phi_1 \rho(k-1) + \phi_2 \rho(k-2)
+$$
+
+Examples of equations in the set:
+
+$$
+... \\
+p(5) = \phi_1 p(4) + \phi_2 p(3) \\
+p(6) = \phi_1 p(5) + \phi_2 p(4) \\
+... \\
+p(k) = \phi_1 p(k-1) + \phi_2 p(k-2) \\
+$$
+
+#### 6- Solve Yule-Walker equation
+
+As done previously on this document, we must solve a difference equation. Let's use again the example:
+
+$$
+X_t = \frac{1}{3} X_{t-1} + \frac{1}{2} X_{t-2} + Z_t
+$$
+
+We use replacement $\rho(k) = a_n$, then:
+
+$$
+\lambda^n = \frac{1}{3} \lambda^{n-1} + \frac{1}{2} \lambda^{n-2} \implies \lambda^2 - \frac{1}{3} \lambda - \frac{1}{2} = 0
+$$
+
+Roots of previous equation are:
+
+$$
+\lambda_1 = \frac{2 + \sqrt{76}}{12}, \ \lambda_2 = \frac{2 - \sqrt{76}}{12}
+$$
+
+We can rewrite equation as:
+
+$$
+\rho(k) = c_1 \lambda_1 + c_2 \lambda_2 = c_1 \left( \frac{2 + \sqrt{76}}{12} \right)^k + c_2 \left( \frac{2 - \sqrt{76}}{12} \right)^k
+$$
+
+Now we must find $c_1$, $c_2$. We are going to use 2 assumptions:
+
+- $p(0) = 1$
+- $p(-k) = p(k)$
+
+Then:
+
+$$
+p(1) = \frac{1}{3} p(0) + \frac{1}{2} p(-1) \\
+p(1) = \frac{1}{3} p(0) + \frac{1}{2} p(1) \\
+p(1) = \frac{1}{3} + \frac{1}{2} p(1) \implies p(1) = \frac{2}{3}
+$$
+
+Then:
+
+- $p(0) = c_1  + c_2 = 1$ 
+- $p(1) = c_1 \left( \frac{2 + \sqrt{76}}{12} \right) + c_2 \left( \frac{2 - \sqrt{76}}{12} \right) = \frac{2}{3}$
+
+We can solve the following linear system (will contain as $p$ degrees of freedom for an $AR(p)$) to get $c_1$ and $c_2$:
+
+$$
+\Bigg\{
+  \begin{array}{l}
+  c_1  + c_2 = 1 \\
+  c_1 \left( \frac{2 + \sqrt{76}}{12} \right) + c_2 \left( \frac{2 - \sqrt{76}}{12} \right) = \frac{2}{3}
+  \end{array}
+$$
+
+Which have solutions $c_1 = \frac{4 + \sqrt{6}}{8}$ and $c_2 = \frac{4 - \sqrt{6}}{8}$.
+
+Then, we have the autocorrelation equation for the initial $AR(2)$:
+
+$$
+\rho(k) = \frac{4 + \sqrt{6}}{8} \left( \frac{2 + \sqrt{76}}{12} \right)^k + \frac{4 - \sqrt{6}}{8}  \left( \frac{2 - \sqrt{76}}{12} \right)^k , \ \forall k \ge 0 \\
+\rho(-k) = \rho(k)
+$$
+
+#### Simulation in R
+
+We are computing the ACF function for the example using built-in R commands and the computed Yule-Walker equations to confirm they retrieve the same.
+
+First, let's simulate the $AR(2)$ process from the example and compute the ACF in R:
+
+```{r}
+n = 10000
+max_lag = 50
+x.ts <- arima.sim(list(ar=c(1/3, 1/2)), n=n)
+x.acf = acf(x.ts, main="Autocorrelation of example AR(2)", lag.max=max_lag)
+```
+
+Now, let's plot the computed Yule-Walker equation:
+
+```{r}
+rhos = NULL
+c1 = (4 + sqrt(6))/8
+c2 = (4 - sqrt(6))/8
+lambda1 = (2 + sqrt(76))/12
+lambda2 = (2 - sqrt(76))/12
+for (k in 0:max_lag){
+  rhos[k + 1] = c1 * lambda1**k + c2 * lambda2**k
+}
+plot(rhos, type='h', xaxt='n', main='Rho(k) from Yule-Walker equation')
+axis(1, at=1:(max_lag+1), labels=0:max_lag)
+```
+
+We confirm functions are highly similar.

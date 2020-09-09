@@ -1,0 +1,259 @@
+---
+title: "Sarima Applications: J&J"
+output: 
+  html_document:
+    number_sections: true
+---
+
+```{r}
+library(astsa)
+```
+
+## Objective
+
+The objective of this notebook is to forecast future values of a given time series.
+
+## Model restrictions
+
+Following the *parsimony principle*, we will be restricting our pool of model candidates so they follow the following restriciton:
+
+
+$$
+p + d + q + P + D + Q \le 6
+$$
+
+By doing so, we ensure we keep the model complexity low.
+
+## Data
+
+The dataset consists on the quarterly earnings of the *Johnson & Johnson* stock between 1960 and 1980.
+
+```{r}
+data("jj", package = "astsa")
+data.jj <- jj
+plot(data.jj,
+     main = "Quarterly earnings of Johnson&Johnson share",
+     ylab = "Dollars",
+     col = "blue")
+```
+
+We see there is an increasing trend and that variance increases with time, as well (i.e. heteroscedasticity). It is also easy to see there is a seasonal pattern.
+
+## Modeling J&J data
+
+### Transforming the data
+
+In order to stabilize the data, we use the log-return $r_t$ of the time series:
+
+$$
+r_t = log \frac{X_t}{X_{t-1}} = log X_t - log X_{t-1}
+$$
+
+In R:
+
+```{r}
+data.log <- diff(log(data.jj))
+par(mfrow = c(3, 1))
+plot(data.log,
+     main = "Log-return quarterly earnings of Johnson&Johnson share",
+     ylab = "Dollars",
+     col = "blue")
+acf(data.log)
+pacf(data.log)
+```
+
+
+We see log return data seems more stationary than it was before. There is still some change in the variance, but we are ignoring it by now. We can also observe that there are seasonal correlations in the ACF at multiples of lag 4.
+
+If we difference the log return time series by 4, we see a time series that is more likely to be stationary:
+
+```{r}
+data.diff_log <- diff(data.log, 4)
+plot(data.diff_log,
+     main = "Log-return and seasonal differenced quarterly earnings of Johnson&Johnson share",
+     ylab = "Dollars",
+     col = "blue")
+```
+
+### Assume autocorrelation exists
+
+```{r}
+Box.test(data.diff_log, lag = log(length(data.diff_log)), type = "Ljung-Box")
+```
+
+We see p-value is very small, therefore, we can reject the null hypothesis that all autocorrelation coefficients are 0.
+
+
+### Suggest order through ACF and PACF
+
+```{r}
+par(mfrow = c(2, 1))
+acf(data.diff_log, main = "ACF of log-return and seasonal differenced time series")
+pacf(data.diff_log, main = "PACF of log-return and seasonal differenced time series")
+```
+
+The ACF plots suggests:
+
+- Moving average process is likely to be of order 1 (i.e. peak at lag 1).
+- Though not significant, we may also contemplate a seasonal moving average of order 1 at lag 4 (i.e. peak at lag 4).
+
+The PACF suggests:
+
+- Autoregressive process order is likely to be one (i.e. peak at lag 1).
+- We may also have a seasonal autoregressive part of order 1 at lag 4 (see significant peak at lag 4).
+- After lag 4, autocorrelation dies off.
+
+Note that higher order candidates are not going to be considered as we want to restrict our SARIMA models to be of lower order by imposing the parsimony principle commented above.
+
+### Fit candidates
+
+We saw that we want to apply a differencing of 1 and a seasonal differencing of one for span $4$:
+
+$$
+SARIMA(p, 1, q, P, 1, Q)_4
+$$
+
+We define the domain of the hyperparameters:
+
+- $p = \{0, 1\}$
+- $q = \{0, 1\}$
+- $P = \{0, 1\}$
+- $Q = \{0, 1\}$
+
+Note that we are fitting our model on $Y_t$, which is defined as:
+
+$$Y_t = log(X_t)$$
+
+As the differencing is already handled within the model. And we define our candidates as (nearly) all possible combinations of hyperparameters.
+
+Let's fit all of them:
+
+
+```{r}
+d <- 1
+D <- 1
+s <- 4
+
+names <- NULL
+pvalues <- NULL
+sses <- NULL
+aics <- NULL
+
+i <- 1
+for (p in (0:1)) {
+  for (q in (0:1)) {
+    for (P in (0:1)) {
+      for (Q in (0:1)) {
+        # Note we provide the log return data, as both seasonal and non-seasonal
+        # differencing is handled by the model
+        model <- arima(
+          x = log(data.jj),
+          order = c(p, d, q),
+          seasonal = list(order = c(P, D, Q), period = s),
+        )
+        # Check correlation of model residuals
+        pvalues[i] <- Box.test(
+          model$residuals,
+          lag = log(length(model$residuals)),
+          type = "Ljung-Box"
+        )$p.value
+        names[i] <- paste(
+          "SARIMA(", p, ",", d, ",", q, ",", P, ",", D, ",", Q, ")_", s, sep = ""
+        )
+        sses[i] <- sum(model$residuals^2)
+        aics[i] <- model$aic
+        i <- i + 1
+      }
+    }
+  }
+}
+
+```
+
+Display data frame with the model performances by showing the top performing ones first:
+
+```{r}
+results <- data.frame(
+  name = names,
+  AIC = aics,
+  SSE = sses,
+  pvalue = pvalues
+)
+
+format(results[order(results$AIC), ], scientific = FALSE)
+```
+
+The top performing model is $SARIMA(0, 1, 1, 1, 1, 0)_4$, which has:
+
+- Span of 4.
+- Seasonal autocorrelation of order 1.
+- Moving average of order 1.
+
+We observe that the p-value of the model is quite high, which means we do not have evidente to reject the null hypothesis that there is no autocorrelation in the residuals (therefore, we assume that residuals are not correlated).
+
+### Obtain coefficients
+
+After we have computed the most suited model, we can proceed to compute the coefficients:
+
+```{r}
+model <- sarima(
+  log(data.jj),
+  p = 0,
+  d = 1,
+  q = 1,
+  P = 1,
+  D = 1,
+  Q = 0,
+  S = 4,
+)
+model
+```
+
+```{r}
+model$ttable
+```
+
+We see p-values for both coefficients are very small, so coefficient values are significant.
+
+### Write resulting model
+
+Given:
+
+$$
+X_t = Earning \\
+Y_t = log(X_t)
+$$
+
+We can write our $SARIMA(0, 1, 1, 1, 1, 0)_4$ as:
+
+$$
+(1 - \Phi_1 B^4) (1 - B^4) (1 - B) Y_t = (1 + \theta_1 B) Z_t \\
+(1 - B^4 - \Phi_1 B^4  + \Phi_1 B^8)(1 - B) Y_t = Z_t + \theta_1 Z_{t-1} \\
+(1 - B^4 - \Phi_1 B^4  + \Phi_1 B^8 - B + B^5 + \Phi_1B^5 - \Phi_1 B^9) Y_t = Z_t + \theta_1 Z_{t-1} \\
+Y_t - Y_{t-1} - (\Phi_1 + 1) Y_{t-4} + (1 + \Phi_1) Y_{t-5} + \Phi_1 Y_{t-8} - \Phi_1 Y_{t-9} = Z_t + \theta_1 Z_{t-1} \\
+Y_t = Y_{t-1} + (\Phi_1 + 1) Y_{t-4} - (\Phi_1 + 1) Y_{t-5} - \Phi_1 Y_{t-8} + \Phi_1 Y_{t-9} + Z_t + \theta_1 Z_{t-1}
+$$
+
+If we replace $\Phi_1 = -0.332$ and $\theta_1 = -0.6796$, we get:
+
+$$
+Y_t = Y_{t-1} + 0.668 Y_{t-4} - 0.668 Y_{t-5} + 0.332 Y_{t-8} - 0.332 Y_{t-9} + Z_t - 0.6796 Z_{t-1} \\
+Y_t = log(X_t) \\
+Z_t \sim N(0, 0.007913)
+$$
+
+### Forecasting
+
+We can forecast future point using the `forecast` package:
+
+```{r}
+library(forecast)
+model <- arima(x = log(data.jj), order = c(0, 1, 1), seasonal = list(order = c(1, 1, 0), period = 4))
+plot(forecast(model))
+```
+
+We see the values for the next two years in the plot. We can also see a full projection on the values and their confidence intervals:
+
+```{r}
+forecast(model)
+```

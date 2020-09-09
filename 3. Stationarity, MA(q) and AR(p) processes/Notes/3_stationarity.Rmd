@@ -1,0 +1,55 @@
+---
+title: "Stationarity recap"
+---
+
+## Introduction
+
+A stochastic process is a family of random variables structured with a time index, denoted by $X_t$ for discrete processes and $X(t)$ for continuous processes.
+
+The definition of a stochastic process strucure requires to know the joint distribution of a full  (i.e. potentially inifinite) set of random variables.
+
+Usually, we only have one realization of a stochastic process, a time series. Therefore, we have only a sample for each of the random variables. How can we 
+infer properties from the generating stochastic process given that single realization? We can do it by introducing some structure.
+
+## Stationarity recap
+
+A process is *strictly stationary* if the joint distribution of
+
+$$X(t_1), X(t_2), ..., X(t_k)$$
+
+is the same as the joint distribution of 
+
+$$X(t_{1 + \tau}), X(t_{2 + \tau}), ..., X(t_{k + \tau})$$
+
+### Implications on mean and variance function
+
+If:
+
+
+$$p(X(t_i)) = p(X(t_{i + \tau}))$$
+
+Then, 
+
+- Random variables are identically distributed, though not necessarily independent.
+- Mean function is constant (i.e. $\mu(t) = \mu$).
+- Variance function is constant (i.e. $\sigma^2(t) = \sigma^2$).
+
+If:
+
+$$p(X(t_i), X(t_{i+1})) = p(X(t_{i+\tau}), X(t_{i+1+\tau}))$$
+
+Then:
+
+- Joint distribution distribution of two random variables depend only on the lag spacing.
+- Autocovariance function is independent of $t$.
+- Autocovariance function only depends on lag:
+
+$$acf: \gamma(t1, t_2) = \gamma(t_2 - t_1) = \gamma(\tau)$$
+
+## Weakly stationarity
+
+We can relax stationarity by imposing only 3 restrictions:
+
+- Mean functions is constant.
+- Variance is constant (finite).
+- Autocovariance function only depends on lag spacing.

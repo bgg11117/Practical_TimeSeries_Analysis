@@ -1,0 +1,139 @@
+---
+title: "Estimating AR coefficients"
+---
+
+Given known formula for $AR(p)$ processes:
+
+$$
+X_t = Z_t + \phi_0 + \phi_1 X_{t-1} + \phi_2 X_{t-2} + \ldots + \phi_p X_{t-p}
+$$
+
+We are going to build the Yule-Walker equations in matrix format, creating a linear system of equations which we will be able to solve analytically, and we are going to get the coefficients for the autoregressive process. To do so, we are going to assume that the process has expectation zero. If it does not, we can force it by subtracting its expectation so we can get rid of the $\phi_0$ (see [this](#centering-an-autoregressive-model-around-0).)
+
+Let's recap the Yule-Walker general equation for $AR(p)$:
+
+$$
+\rho(k) =
+  \begin{cases}
+  \rho(-k) & k < 0 \\
+  1 & k = 0 \\
+  \phi_1 \rho(k-1)  + \phi_2 \rho(k-2) + \ldots + \phi_p \rho(k - p) & k \ge 1 \\
+  \end{cases}
+$$
+
+If we write the linear system of equations for $k=\{1, 2, ...,p\}$:
+
+$$
+\begin{array}{lllllllll}
+\rho(1) & = & \phi_1 \rho(0) & + & \phi_2 \rho(-1) & + & \phi_3 \rho(-2) & + \cdots + \ & \phi_p \rho(1-p) \\
+\rho(2) & = & \phi_1 \rho(1) & + & \phi_2 \rho(0) & + & \phi_3 \rho(-1) & + \cdots + \ & \phi_p \rho(2-p) \\
+& & & & \cdots & & & & \\
+\rho(p-1) & = & \phi_1 \rho(p-2) & + & \phi_2 \rho(p-3) & + & \phi_3 \rho(p-4) & + \cdots + \ & \phi_p \rho(-1) \\
+\rho(p) & = & \phi_1 \rho(p-1) & + & \phi_2 \rho(p-2) & + & \phi_3 \rho(p-3) & + \cdots + \ & \phi_p \rho(0) \\
+\end{array}
+$$
+
+As $\rho(-k) = k$ and $\rho(0) = 1$:
+
+$$
+\begin{array}{lllllllll}
+\rho(1) & = & \phi_1 & + & \phi_2 \rho(1) & + & \phi_3 \rho(2) & + \ldots + \ & \phi_p \rho(p-1) \\
+\rho(2) & = & \phi_1 \rho(1) & + & \phi_2 & + & \phi_3 \rho(1) & + \ldots + \ & \phi_p \rho(p-2) \\
+& & & & \cdots & & & & \\
+\rho(p-1) & = & \phi_1 \rho(p-2) & + & \phi_2 \rho(p-3) & + & \phi_3 \rho(p-4) & + \ldots + & \phi_p \rho(1) \\
+\rho(p) & = & \phi_1 \rho(p-1) & + & \phi_2 \rho(p-2) & + & \phi_3 \rho(p-3) & + \ldots + \ & \phi_p \\
+\end{array}
+$$
+
+If we write this in matrix format:
+
+$$
+\begin{bmatrix}
+\rho(1) \\
+\rho(2) \\
+\ldots \\
+\rho(p-1) \\
+\rho(p)
+\end{bmatrix} = 
+\begin{bmatrix}
+1 & \rho(1) & \rho(2) & \ldots  & \rho(p-1) \\
+\rho(1) & 1 & \rho(1) & \ldots  & \rho(p-2) \\
+\vdots & \vdots & \vdots & \ldots & \vdots \\
+\rho(p-2) & \rho(p-3) & \rho(p-4) & \cdots & \rho(p) \\
+\rho(p-1) & \rho(p-2) & \rho(p-3) & \cdots & 1 \\
+\end{bmatrix}
+\begin{bmatrix}
+\phi_1 \\
+\phi_2 \\
+\vdots \\
+\phi_{p-1} \\
+\phi_{p}
+\end{bmatrix}
+$$
+
+Which can be written as:
+
+$$
+b = R \phi
+$$
+
+Where $\phi$ is the row vector containing the coefficients of the autoregressive process. To get the coefficients, we can do:
+
+$$
+R^{-1} b = R^{-1} \phi \implies \phi = R^{-1} b
+$$
+
+As $R$ is a **positive semidefinite matrix$** (i.e. all eigenvalues are positive or zwero), the inverse exists and has a unique solution.
+
+When dealing with real time series, we do not have the real autocorrelation (i.e. $\rho(k)$) function but the sample autocorrelation estimate (i.e. $r_k$), so we can rewrite the matrix equation as:
+
+$$
+\begin{bmatrix}
+r(1) \\
+r(2) \\
+\ldots \\
+r(p-1) \\
+r(p) \\
+\end{bmatrix} = 
+\begin{bmatrix}
+1 & r_1 & r_2 & \ldots  & r_{p-1} \\
+r_1 & 1 & r_1 & \ldots  & r_{p-2} \\
+\vdots & \vdots & \vdots & \ldots & \vdots \\
+r_{p-2} & r_{p-3} & r_{p-4} & \cdots & r_p \\
+r_{p-1} & r_{p-2} & r_{p-3} & \cdots & 1 \\
+\end{bmatrix}
+\begin{bmatrix}
+\hat{\phi}_1 \\
+\hat{\phi}_2 \\
+\vdots \\
+\hat{\phi}_{p-1} \\
+\hat{\phi}_{p} \\
+\end{bmatrix}
+$$
+
+And we can obtain the estimated row of coefficients $\hat{\phi}$ as:
+
+$$
+\hat{\phi} = \hat{R}^{-1} \hat{b}
+$$
+
+## Appendix
+
+### Centering an autoregressive model around 0
+
+If we take expectations and **assuming the AR(p) is stationary** (i.e. $E[X_i] = E[X_j] = \mu$), we get:
+
+$$
+E[X_t] = E[Z_t + \phi_0 + \phi_1 X_{t-1} + \phi_2 X_{t-2} + \ ... \ + \phi_p X_{t-p}] \\
+\mu = \phi_0 + \phi_1 \mu + \phi_2 \mu + \ ... \ + \phi_p \mu
+$$
+
+As the expected value of random noise $Z_t$ is 0. If we subtract the expect value at both sides of the original equation, we get:
+
+$$
+X_t - E[X_t] = \left(Z_t + \phi_0 + \phi_1 X_{t-1} + \phi_2 X_{t-2} + \ ... \ + \phi_p X_{t-p}\right) - E[X_t] \\
+X_t - \mu = Z_t + \phi_1 (X_{t-1} - \mu) + \phi_2 (X_{t-2} - \mu) + \ ... \ + \phi_p (X_{t-p} - \mu) \\
+\tilde{X}_t = Z_t + \phi_1 \tilde{X}_{t-1} + \phi_2 \tilde{X}_{t-2} + \ ... \ + \phi_p \tilde{X}_{t-p} 
+$$
+
+We have rewritten the $AR(p)$ in terms of $\tilde{X}_t = X_t - \mu$, which has expectation equal to 0 (i.e. $E[\tilde{X}_t] = 0$).

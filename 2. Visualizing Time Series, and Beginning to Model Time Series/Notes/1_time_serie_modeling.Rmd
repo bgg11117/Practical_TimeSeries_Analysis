@@ -1,0 +1,251 @@
+---
+title: "Time Series modeling"
+---
+
+# White noise 
+
+Given a discrete family of independent, identically distributed (i.e. iid) random variables (e.g. Gaussian), a white noise process $X_t$ can be defined as:
+
+$$
+X_t \sim iid(0, \sigma^2) \\
+X_t \sim N(0, \sigma^2)
+$$
+
+Mean function is obviously constant (i.e. $\mu(t) = 0$) and autocovariance function is:
+
+$$
+\gamma(t_1, t_2) = \begin{cases}
+0        & \mbox{if } t_1 \neq t_2 \\
+\sigma^2 & \mbox{if } t_1 = t_2 \\
+\end{cases}
+$$
+
+Therefore, it is straightforward that **white noise is a stationary process**.
+
+
+# Random walk
+
+Given $Z_t$ is a discrete pure random process, so:
+
+$$Z \sim Normal(\mu, \sigma^{2})$$
+
+Then, $X_t$ is a random walk if:
+
+$$X_t = X_{t-1} + Z_t$$
+
+Therefore:
+
+$$X_t = \sum^{t}_{i=1} Z_i$$
+
+Note that process starts at $t=0$, so $X_1 = Z_1$.
+
+## Properties
+
+
+Given $Z_t$ built from a family of iid random variables:
+
+$$Z_t \sim iid(\mu, \sigma^2)$$
+
+The expectation of $X_t$ can be defined as:
+
+$$E[X_t] = E\left[  \sum^{t}_{i=1} Z_i\right] = \sum^{t}_{i=1} E[Z_i] = \mu t$$
+
+And variance:
+
+$$Var[X_t] = Var\left[  \sum^{t}_{i=1} Z_i\right] = \sum^{t}_{i=1} Var[Z_i] = \sigma^2 t$$
+
+Note that we can move the variance operator through the sum as we start from the assumption that $Z_t$ comes from a family of iid random variables.
+
+As mean changes over time and variance is not constant (i.e. increases infinitely), **random walk process is not stationary**.
+
+## Random walk in R
+
+```{r}
+N=1000
+z = rnorm(1000)
+x=NULL
+x[1] = z[1]
+for(i in 2:N) {
+  x[i]=x[i-1]+z[i]
+}
+random_walk=ts(x)
+plot(random_walk, main='Random walk', ylab='', xlab='Days', col='blue', lwd=2)
+```
+
+We would normally not visualize the Autocorrelation Function (ACF), as they are usually defined for stationary time series. Let's do it anyway:
+
+```{r}
+acf(random_walk)
+```
+
+We see there is a high correlation, which confirms the non-stationarity data of the time series.
+
+### Removing the trend
+
+If we isolate $Z_t$ in the random walk process equation, we get: 
+
+$$
+Z_t = X_t - X_{t-1} \\
+\nabla X_t = Z_t
+$$
+
+This means that the $\nabla X_t$ (i.e. difference between consecutive points in the random walk) is a stationary time series.
+
+Let's use the difference operator for computing $\nabla X_t$:
+
+```{r}
+plot(diff(random_walk))
+plot(acf(diff(random_walk)))
+```
+
+We see that the difference time series looks like random noise and that the ACF resembles the expected one for a stationary time series.
+
+
+# Moving averages
+
+A moving average of order $q$ (i.e. $MA(q)$) $X_t$ can be defined as:
+
+$$X_t = \beta_0 Z_t + \beta_1 Z_{t-1} + \beta_2 Z_{t-2} + ... + \beta_q Z_{t-q}$$
+
+Where $Z_t$ is random noise. We can see $X_t$ is a linear combination of past (and current) values of $Z_t$.
+
+*Example*: Given a company's stock price $X_t$ which is influenced by their daily announcements $Z_t$ from last two days, we can define as a Moving Average of order 2 (note we assume $\beta_0 = 1$):
+
+$$X_t = Z_t + \beta_{1} Z_{t-1} + \beta_{2} Z_{t-2}$$
+
+## Properties
+
+
+Starting with iid random variables:
+
+$$Z_t \sim iid(0, \sigma^2)$$
+
+We can generate a moving average process of order $q$:
+
+$$MA(q) process: \ \ \ X_t = \beta_0 Z_t + \beta_1 Z_{t-1} + ... + \beta_q Z_{t-q} $$
+
+The expectation of a moving average is:
+
+$$E[X_t] = \beta_{0} E[Z_t] + \beta_{1} E[Z_{t-1}] + ... + \beta_{q} Z_{t-q} = 0$$
+
+And variance:
+
+$$V[X_t] = \beta^2_{0} V[Z_t] + \beta^2_{1} V[Z_{t-1}] + ... + \beta^2_{q} V[Z_{t-q}] = \sigma^2_Z \sum^q_{i=0} \beta^2_i$$
+
+Let's have a look at the **covariance function at two points** (i.e. autocovariance) of the moving average process separated by $k$ positions:
+
+$$ cov[X_t, X_{t+k}] = E[X_t X_{t+k}] - E[X_t] E[X_{t+k}]$$
+
+Given that we know:
+
+$$E[X_t] = E[X_{t+k}] = 0$$
+
+We can rewrite covariance as:
+
+$$ cov[X_t, X_{t+k}] = E[X_t X_{t+k}]  $$
+If we expand this, we get:
+
+$$ cov[X_t, X_{t+k}] = E[( \beta_0 Z_t + ... + \beta_q Z_{t-q} ) (\beta_0 Z_{t+k} + ... + \beta_q Z_{t-q+k})]$$
+
+Since $Z_t$ are independent to one another, we only have contributions to the variance when positions used to build $X_t$ and $X_{t+k}$ overlap (i.e. contributions to the variance occur only when $k \le q$).
+
+Let's expand the product above:
+
+$$ E[( \beta_0 Z_t + ... + \beta_q Z_{t-q} ) (\beta_0 Z_{t+k} + ... + \beta_q Z_{t-q+k})] = \\
+E\left[
+  \begin{array}{llll}
+    \beta_0 \beta_0 Z_t Z_{t+k} & + ... + & \beta_0 \beta_q Z_t Z_{t-q+k} & +\\
+    \beta_1 \beta_0 Z_{t-1} Z_{t+k} &  + ... + &  \beta_1 \beta_q Z_{t-1} Z_{t-q+k} & +\\
+    & + ... + &  & \\
+    \beta_q \beta_0 Z_{t-q} Z_{t+k} & + ... + & \beta_q \beta_q Z_{t-q} Z_{t-q+k} & \\
+  \end{array}
+\right]
+$$
+
+In products for two random variables $Z_i,Z_j$, they only contribute when $i = j$, as they are independent to one another.
+
+If $k=0$, we get:
+
+$$
+E\left[
+  \begin{array}{llll}
+    \beta_0 \beta_0 Z_t Z_{t} & + ... + & \beta_0 \beta_q Z_t Z_{t-q} & +\\
+    \beta_1 \beta_0 Z_{t-1} Z_{t} &  + ... + &  \beta_1 \beta_q Z_{t-1} Z_{t-q} & +\\
+    & + ... + &  & \\
+    \beta_q \beta_0 Z_{t-q} Z_{t} & + ... + & \beta_q \beta_q Z_{t-q} Z_{t-q} & \\
+  \end{array}
+\right] = \\
+E\left[
+  \begin{array}{lllllll}
+    \beta_0 \beta_0 \sigma^2 & + & 0 & + & ... & +  & 0 \ +\\
+    0 & + & \beta_1 \beta_1 \sigma^2 & + & ... & +  & 0 \ +\\
+    & & + \ ... \ +& & & & \\
+    0 & + & 0 & + & ... & + & \beta_q \beta_q \sigma^2\\
+    \end{array} \right] = \\
+\sigma^2 \sum^q_{i=0} \beta^{2}_i
+$$
+
+We only get contributions along the main diagonal of matrix above.
+
+For $k=1$, we then get:
+
+$$
+E\left[
+  \begin{array}{llll}
+    \beta_0 \beta_0 Z_t Z_{t+1} & + ... + & \beta_0 \beta_q Z_t Z_{t-q+1} & +\\
+    \beta_1 \beta_0 Z_{t-1} Z_{t+1} &  + ... + &  \beta_1 \beta_q Z_{t-1} Z_{t-q+1} & +\\
+    & + ... + &  & \\
+    \beta_q \beta_0 Z_{t-q} Z_{t+1} & + ... + & \beta_q \beta_q Z_{t-q} Z_{t-q+1} & \\
+  \end{array}
+\right] = \\
+E\left[
+  \begin{array}{lllllllll}
+    0 & + & \beta_0 \beta_1 Z_t Z_t & + & 0 & + & ... & +  & 0 \ +\\
+    0 & + & 0 & + & \beta_1 \beta_2 Z_{t-1} Z_{t-1} & + & ... & +  & 0 \ +\\
+    & & & + & ... & + & & &\\
+    0 & + & 0 & + & 0 & + & ... & +  & 0 \\
+    \end{array} \right] = \\
+\sigma^2 \sum^{q-1}_{i=0} \beta_i \beta_{i+1}
+$$
+
+It is easy to get to the generic function for the covariance:
+
+
+$$
+cov[X_t, X_{t+k}] = \begin{cases}
+0        & \mbox{if } k > q \\
+\sigma^2 \sum^{q-k}_{i=0} \beta_i \beta_{i+k} & \mbox{if } k \le q \\
+\end{cases}
+$$
+
+Since no there is $t$ dependency in the autocovariance function, mean is constant and variance is finite, **moving averages are weakly stationary processes**.
+
+
+## Moving Averages in R
+
+For this example, $X_t$ is going to be:
+
+$$
+X_t = Z_t + 0.7 Z_{t-1} + 0.2 Z_{t-2} \\
+Z_t \sim Normal(0, 1)
+$$
+
+Let's code it:
+
+```{r}
+N = 10000
+q = 2
+
+noise = rnorm(N)
+ma = NULL
+
+for (i in (q+1):N) {
+  ma[i - q] = noise[i] + 0.7 * noise[i-1] + 0.2 * noise[i-2]
+}
+
+
+lines(plot(ma, main='Moving Average Process of order 2', ylab=' ', type='l', col='blue'))
+acf(ma, main='Correlogram of a Moving Average Process of order 2')
+```
+
+We can see there are significant correlations with lag 1 and 2, which is obvious as the moving average process has order 2.

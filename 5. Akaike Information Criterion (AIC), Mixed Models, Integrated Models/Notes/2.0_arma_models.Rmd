@@ -1,0 +1,300 @@
+---
+title: "ARMA models"
+---
+
+Though we have already learnt about autoregressive (i.e. $AR(p)$) and moving average (i.e. $MA(q)$) processes, the real world samples are usually best modelled when combining both of them. ARMA models (i.e. $ARMA(p, q)$) combine the previous processes as:
+
+$$
+X_t = noise \ + autoregressive \ component \ + moving \ average \ component \\
+X_t = Z_t + \phi_1 X_{t-1} + \ldots +\phi_p X_{t-p} + \theta_1 Z_{t-1} + \ldots + \theta_q Z_{t-q}
+$$
+
+The advantage of using ARMA models instead of AR or MA models alone is that ARMA models are generally simpler and more efficient, as they tend to have less number of coefficients.
+
+We can rewrite the equation to make it more compact by using the backward shift operator and polynomials operatos:
+
+$$
+X_t = Z_t + \phi_1 X_{t-1} + \ldots +\phi_p X_{t-p} + \theta_1 Z_{t-1} + \ldots + \theta_q Z_{t-q} \\
+X_t - \phi_1 X_{t-1} - \ldots - \phi_p X_{t-p} = Z_t +  \theta_1 Z_{t-1} + \ldots + \theta_q Z_{t-q} \\
+(1 - \phi_1 B - \ldots - \phi_p B^p) X_t = (1 + \theta_1 B + \ldots + \theta_q B^q) Z_t \\
+\phi(B)X_t = \theta(B) Z_t
+$$
+
+Using this notation we can actually express:
+
+- $ARMA(p, q)$ as an infinite order moving average process (i.e. $MA(\infty)$):
+
+$$
+\phi(B)X_t = \theta(B) Z_t \implies X_t =\frac{\theta(B)}{\phi(B)} Z_t = \Psi(B) Z_t
+$$
+
+- $ARMA(p, q)$ as an infinite order autoregressive process (i.e. $AR(\infty)$):
+
+$$
+\phi(B)X_t = \theta(B) Z_t \implies Z_t =\frac{\phi(B)}{\theta(B)} X_t = \pi(B) X_t
+$$
+To do so, ARMA process must be stationary and invertible.
+
+
+## Properties
+
+The following set of properties, which are omitted in the original course, have been adapted from [this source](http://www.eco.uc3m.es/~jgonzalo/teaching/timeseriesMA/ArmaWei.pdf), [this other source](http://www.ce.memphis.edu/7137/PDFs/signal%20Processing/arma.pdf) and [this other one](http://www.maths.qmul.ac.uk/~bb/TimeSeries/TS_Chapter4_6.pdf).
+
+### Invertibility conditions
+
+Invertibity conditions are the same as those of an $MA(q)$ model: for an ARMA model to be invertible we need roots of $\phi(B) = 0$ to lie outside the unit circle. If $X_t$ is invertible, it has an infinite autoregressive representation.
+
+### Stationarity conditions
+
+Stationary conditions are the same as those for an $AR(p)$ model: for ARMA model to be stationary we need roots of $\theta(B) = 0$ to lie outside the unit circle. IF $X_t$ is stationary, then $X_t$ has an infinite moving average representation.
+
+It is asumed that $\phi(B) = 0$ and $\theta(B) = 0$ share no common roots.
+
+### Autocovariance
+
+To estimate autocovariance, we can rewrite the ARMA model as:
+
+$$
+X_t = Z_t + \theta_1 Z_{t-1} + \ldots + \theta_q Z_{t-q} + \phi_1 X_{t-1} + \ldots + \phi_p X_{t-p}
+$$
+
+If we multiply by $X_{t-k}$ at both sides:
+
+$$
+X_t X_{t-k} = Z_t X_{t-k} + \theta_1 Z_{t-1} X_{t-k} + \ldots + \theta_q Z_{t-q} X_{t-k} + \phi_1 X_{t-1} X_{t-k} + \ldots + \phi_p X_{t-p} X_{t-k}
+$$
+
+If we take the expectations:
+
+$$
+\gamma(k) = E[Z_t X_{t-k}] + E[\theta_1 Z_{t-1} X_{t-k}] + \ldots + E[\theta_q Z_{t-q} X_{t-k}] + \phi_1\gamma(k-1) + \ldots + \phi_p \gamma_{k-p}
+$$
+
+Note $E[Z_t Z_{t-k}] = \gamma(k)$ and:
+
+$$
+E[Z_j X_i] = 0, \ j > i
+$$
+Therefore, if we assume $k > q$ we can remove all components $\theta_i Z_{t-i} X_{t-k}$:
+
+$$
+\gamma(k) = \phi_1 \gamma(k-1) + \ \ldots + \phi_p \gamma(k-p), \ k > q
+$$
+
+### Autocorrelation
+
+Then, autocorrelation function can be obtained by dividing both sides of the covariance by $\gamma(0)$:
+
+$$
+\rho(k) = \phi_1 \rho(k-1) + \ldots + \phi_p \rho(k-p), \ k > q
+$$
+
+## Example
+
+Let's have the following $ARMA(p=1, q=1)$ model, with a large coefficient autoregressive coefficient $\phi_1=0.7$ and a moderate moving average coefficient $\theta_1 = 0.2$:
+
+$$
+X_t = Z_t + \phi_1 X_{t-1} + \theta_1 Z_{t-1}= Z_t + 0.7 X_{t-1} + 0.2 Z_{t-1}
+$$
+
+Let's simulate it in R:
+
+```{r}
+set.seed(500)
+data <- arima.sim(list(order = c(1, 0, 1), ar = 0.7, ma = 0.2), n = 1000000)
+par(mfrow = c(3, 1))
+plot(data, main = "ARMA(1, 1) phi1=0.7, theta1=0.2", xlim = c(0, 400))
+acf(data, main = "Autocorrelation of ARMA(1, 1) phi1=0.7, theta1=0.2")
+acf(
+  data,
+  type = "partial",
+  main = "Partial Autocorrelation of ARMA(1, 1) phi1=0.7, theta1=0.2"
+)
+```
+
+### ARMA to AR
+
+We would like to rewrite the process in terms of an autoregressive process of infinite order. Let's rewrite the ARMA process:
+
+$$
+X_t - 0.7 X_{t-1} = Z_t + 0.2 Z_{t-1} \\
+(1 - 0.7 B) X_t = (1 + 0.2 B) Z_t \ \implies Z_t = \frac{(1 -0.7B)}{(1 + 0.2 B)} X_t = \pi(B) X_t
+$$
+
+We can regard $\Psi$ as a product of factors, where one of the factors represents a geometric series:
+
+$$
+\pi(B) = (1 - 0.7B) (1 + 0.2B)^{-1} \\
+\pi(B) = (1 - 0.7B) (1 -0.2B + 0.04B^2 + \ldots \ ) \\
+\pi(B) = 1 - 0.9B + 0.18B^2 + \ldots \
+$$
+
+Note we have replaced the second factor by the geometric series given $a=1$ and $r = -0.2B$. Let's first review if there is any way to get a generic closed expression for $\pi(B)$ for $ARMA(p=1, q=1)$.
+
+Recall that we had:
+
+$$
+\pi(B) = \frac{1 - \phi_1B}{1 + \theta_1B}
+$$
+
+In terms of geometric series, we can write:
+
+$$
+\pi(B) = (1 - \phi_1B) (1 + \theta_1B)^{-1} \\
+\pi(B) = (1 - \phi_1B) (1 - \theta_1 B + \theta_1^2B² - \theta_1^3B^3 \ldots) \\
+\pi(B) = (1 - \theta_1 B - \phi_1 B + \phi_1 \theta_1 B² + \theta²_1B² - \phi_1 \theta_1^2 B^3 - \theta_1^3 B^3 \ldots \ ) \\
+\pi(B) = (1 - (\phi + \theta)B + (\phi_1 \theta_1 + \theta_1^2 ) B^2 - (\phi_1 \theta_1^2 + \theta_1^3) B^3 + \ldots \ ) \\
+$$
+
+A pattern is easy to be seen:
+
+$$
+\pi(B) = 1 + \sum^{\infty}_{k=1} \pi_k B^k = 1 + \sum^{\infty}_{k=1} (-1)^{k} (\phi_1 + \theta_1) \theta^{k-1} B^{k}
+$$
+
+Note that each of the $\pi_i$ are the coefficients for each of the $B^i$. If we compute the following (given $\theta_!=0.2$, $\phi_1 = 0.9$):
+
+$$
+\pi_0 = 1 \\
+\pi_1 = -0.9 \\
+\pi_2 = 0.18
+$$
+
+We can confirm they are consistent with the ones we previously found. The infinite order moving average process derived from the $ARMA(p=1, q=1)$ has the following form:
+
+$$
+Z_t = \pi(B) X_t = \left( 1 + \sum^{\infty}_{k=1} (-1)^{k} (\phi_1 + \theta_1) \theta^{k-1} B^{k}\right) X_t = (1 - 0.9B + 0.18B^2 + \ldots \ ) X_t
+$$
+
+### ARMA to MA
+
+If we want to express the ARMA model as an infinite order moving average, we can go straight to the following formula:
+
+$$
+X_t =  \Psi(B) Z_t
+$$
+
+We know:
+
+$$
+\Psi(B) = \frac{1}{\pi(B)}
+$$
+
+For $ARMA(p=1, q=1)$ we have seen that:
+
+$$
+\pi(B) = \frac{\phi(B)}{\theta(B)} = \frac{1 - \phi_1 B}{1 + \theta_1 B} \implies \Psi(B) = \frac{1 + \theta_1 B}{1 - \phi_1 B}
+$$
+
+If we expand $\Psi(B)$ as we did with $\pi(B)$ (i.e. replacing denominator by geometric series sum):
+
+$$
+\Psi(B) = (1+ \theta_1 B) (1 - \phi_1 B)^{-1} \\
+\Psi(B) = (1+ \theta_1 B) (1 + \phi_1 B + \phi_1^2B^2 + \phi_1^3B^3 + \ldots) \\
+\Psi(B) = 1 + \theta_1 B + \phi_1 B + \theta_1 \phi_1 B^2 + \phi^2_1 B^2 + \theta_1 \phi_1^2B^3 + \phi_1^3B³ + \ldots \ ) \\
+\Psi(B) = 1 + (\theta_1 + \phi_1 ) B + (\theta_1 \phi_1 + \phi_1^2) B^2 + (\theta_1 \phi_1^2 + \phi_1^3) B^3 + \ldots \ ) \\
+\Psi(B) = 1 + (\theta_1 + \phi_1 ) B + (\theta_1 + \phi_1) \phi_1 B^2 + (\theta_1 + \phi_1) \phi_1^2 B^3 + \ldots \ )
+$$
+
+We can easily extract the pattern as well:
+
+$$
+\Psi(B) = 1 + \sum^{\infty}_{k=1} (\theta_1 + \phi_1) \phi_1^{k-1} B^k = 1 + \sum^{\infty}_{k=1} \Psi_k B^k
+$$
+
+Some examples (given $\theta_1=0.2$, $\phi_1 = 0.7$):
+
+$$
+\Psi_0 = 1 \\
+\Psi_1 =  \theta_1 + \phi_1 =  0.9 \\
+\Psi_2 = (\theta_1 + \phi_1) \phi_1 = 0.63 \\
+$$
+
+Then, the infinite order autoregressive process derived from the $ARMA(p=1,q=1)$ is:
+
+$$
+X_t = \Psi(B) Z_t = \left(1 + \sum^{\infty}_{k=1} \Psi_k B^k\right) Z_t = (1 + 0.9B + 0.63B^2 + \ldots \ ) Z_t
+$$
+
+#### Autocorrelation of ARMA(1,1)
+
+If we look at the formula of the autocovariance of autoregressive processes, we get:
+
+$$
+\gamma(k) = \sigma^2_Z \sum^{\infty}_{i=0} \phi_i \phi_{i+k}
+$$
+Which can be written, in terms of $\Psi_i$, as:
+
+$$
+\gamma(k) = \sigma^2_Z  \sum^{\infty}_{i=0} \psi_i \psi_{i+k} \\
+$$
+
+Let's compute $\gamma(0)$:
+
+$$
+\gamma(0) = \sigma^2_Z \sum^{\infty}_{i=0} \psi_i^2 \\
+\gamma(0) = \sigma^2_Z \left( 1 + \sum^{\infty}_{i=1} \psi_i^2 \right) \\
+\gamma(0) = \sigma^2_Z \left( 1 + \sum^{\infty}_{i=1} (\theta_1 + \phi_1)^2 \phi_1^{2(i-1)} \right) \\
+\gamma(0) = \sigma^2_Z \left( 1 + (\theta_1 + \phi_1)^2 \sum^{\infty}_{i=0}  \phi_1^{2i} \right) \\
+$$
+Note the summation is a geometric series with $a=1$, $r=\phi_1^2$. Then, we can write:
+
+$$
+\gamma(0) = \sigma^2_Z \left( 1 + \frac{(\theta_1 + \phi_1)^2}{1 - \phi_1^2} \right)  \\
+$$
+
+Then, we cal compute $\gamma(1)$:
+
+$$
+\gamma(1) = \sigma^2_Z  \sum^{\infty}_{i=0} \psi_i \psi_{i+1} \\
+\gamma(1) = \sigma^2_Z \left((\theta_1 + \phi_1) +  \sum^{\infty}_{i=1} \psi_i \psi_{i+1} \right) \\
+\gamma(1) = \sigma^2_Z \left((\theta_1 + \phi_1) +  \sum^{\infty}_{i=1} (\theta_1 + \phi_1) \phi_1^{i-1} (\theta_1 + \phi_1) \phi_1^{i} \right) \\
+\gamma(1) = \sigma^2_Z \left((\theta_1 + \phi_1) + (\theta_1 + \phi_1)^2 \sum^{\infty}_{i=1}\phi_1^{i-1} \phi_1^{i} \right) \\
+\gamma(1) = \sigma^2_Z \left((\theta_1 + \phi_1) + (\theta_1 + \phi_1)^2 \sum^{\infty}_{i=0}\phi_1^{i} \phi_1^{i+1} \right) \\
+\gamma(1) = \sigma^2_Z \left((\theta_1 + \phi_1) + (\theta_1 + \phi_1)^2 \phi_1 \sum^{\infty}_{i=0} \phi_1^{2i} \right) \\
+$$
+
+Then, if we replace the infinite sum by the convergence value of the geometric series, we get:
+
+$$
+\gamma(1) = \sigma^2_Z \left((\theta_1 + \phi_1) +  \frac{(\theta_1 + \phi_1)^2 \phi_1}{1- \phi_1^2} \right) \\
+$$
+
+Then:
+
+$$
+\rho(1) = \frac{\gamma(1)}{\gamma(0)} \\
+\rho(1) = \frac{\sigma^2_Z \left((\theta_1 + \phi_1) +  \frac{(\theta_1 + \phi_1)^2 \phi_1}{1- \phi_1^2} \right)}{\sigma^2_Z \left( 1 + \frac{(\theta_1 + \phi_1)^2}{1 - \phi_1^2} \right)} \\
+\rho(1) = \frac{(\theta_1 + \phi_1)(1- \phi_1^2)+(\theta_1 + \phi_1)^2 \phi_1}{(1 - \phi_1^2) + (\theta_1 + \phi_1)^2} \\
+\rho(1) = \frac{(\theta_1 + \phi_1)(1 + \theta_1\phi_1)}{\theta_1^2 + 2 \phi_1 \theta_1 + 1} \\
+$$
+
+For values greather than $q=1$, we can use the generic formula:
+
+$$
+\rho(k) = \phi_1 \rho(k-1) + \ldots + \phi_p \rho(k-p), \ k > q
+$$
+
+For $ARMA(p=1, q=1)$, this is:
+
+$$
+\rho(k) = \phi_1 \rho(k-1)
+$$
+
+Let's compute the first values of the autocorrelation function for the example (e.g. $\phi_1=0.7$, $\theta_1=0.2$) using the formulas above:
+
+$$
+\rho(0) = 1 \\
+\rho(1) = \frac{0.9 * 1.14}{0.04 + 0.28 + 1} \approx 0.7773 \\
+\rho(2) = 0.7 * 0.7727 \approx 0.5441 \\
+\rho(3) = 0.7 * 0.5441 \approx 0.3809 \\
+\rho(4) = 0.7 * 0.3809 \approx 0.2666
+$$
+
+Let's compare these values with the estimations from the time series:
+
+```{r}
+(acf(data, main = "Autocorrelation of ARMA(1, 1) phi1=0.7, theta1=0.2", plot=FALSE))
+```
+
+We see we get quite accurate results as the number of examples of the realization of the time process was very high.

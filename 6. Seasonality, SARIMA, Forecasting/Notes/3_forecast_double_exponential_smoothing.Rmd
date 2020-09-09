@@ -1,0 +1,100 @@
+---
+title: "Double Exponential Smoothing"
+---
+
+## Data
+
+The data belongs to the value of money in Australia between February 1960 and December 1994. Before starting, make sure the package `tsdl` is installed in your environment. Then, load the data:
+
+```{r}
+library(tsdl)
+tsdl_abs <- subset(tsdl, source = "Australian Bureau of Statistics")
+money.ts <- tsdl_abs[[49]]
+# As original dataset is missing and this has a missing value, I am imputing it
+# manually to avoid errors
+money.ts[162] <- 22510
+
+par(mfrow = c(3, 1))
+plot(money.ts, main = "Plot of volume of money in Australia")
+acf(money.ts, main = "ACF of volume of money in Australia")
+pacf(money.ts, main = "ACF of volume of money in Australia")
+```
+
+We see an increasing trend in the data. We see an autocorrelation that decreases very slowly in time, as data at one point contains a lot of information of previous points.
+
+## Double Exponential Smoothing
+
+Double exponential smoothing is a more complex evolution of Simple Exponential Smoothing, where trend is accounted for. We combine a smoothing average of the previous values (i.e. snoothed value, \textit{level}) and a correction of the value that uses trend information (i.e. \textit{trend}):
+
+$$
+\hat{X}_{t+k} = level_t + k \cdot trend_t \\
+level_t = \begin{cases}
+X_1 & t = 1 \\
+\alpha X_t + (1 - \alpha)(level_{t-1} + trend_{t-1}) & t \gt 1
+\end{cases} \\
+trend_t = \begin{cases}
+X_2 - X_1 & t = 1 \\
+\beta (level_t - level_{t-1}) + (1 - \beta) trend_{t-1} & t > 1
+\end{cases}
+$$
+Note that the level value includes, in its \textit{historical value term}, contribution from the historical value of the trend. Moreover, notice that the trend is also computed as a weighted average of fresh trend levels (i.e. $level_t - level_{t-1}$) asn historical values of the trend (i.e. $trend_{t-1}$).
+
+### Double Exponential Smoothing in R
+
+### Coding
+
+We can manually code Double Exponential Smoothing:
+
+```{r}
+forecast.values <- NULL
+trend <- NULL
+level <- NULL
+
+alpha <- 0.70
+beta <- 0.50
+
+# Set initial values
+level[1] <- money.ts[1]
+trend[1] <- money.ts[2] - money.ts[1]
+
+# Initialize first values of forecast
+forecast.values[1] <- money.ts[1]
+forecast.values[2] <- money.ts[2]
+
+for (i in (2:length(money.ts))) {
+  level[i] <- alpha * money.ts[i] + (1 - alpha) * (level[i - 1] + trend[i - 1])
+  trend[i] <- beta * (level[i] - level[i - 1])  + (1 - beta) * trend[i - 1]
+  forecast.values[i + 1] <- level[i] + trend[i]
+}
+```
+
+We can plot predictions as:
+
+```{r}
+plot(
+  money.ts,
+  main = paste("Predictions with alpha=", alpha, " and beta=", beta, sep = "")
+)
+lines(ts(forecast.values, start = c(1960, 2), frequency = 12), col = "red")
+```
+
+Note it is straightforward to find the best parameters for alpha and beta using the best setting according to minimal SSE.
+
+### Using Holt Winters
+
+It can be computed in R by means of the `HoltWinters` command:
+
+```{r}
+hw <- HoltWinters(money.ts, gamma = FALSE)
+hw
+```
+
+It returns optimal values for $\alpha$ and $\beta$. We see optimal $\alpha$ is very high. Therefore, emphasis is put on the recent values rather than in the previous ones. ON the other hand, $\beta$ is small, so higher weight is put on older values of the trend. We can visualize the predictions:
+
+```{r}
+par(mfrow = c(1, 2))
+plot(hw, main = "Holt Winters predictions with optimal parameters")
+plot(hw, xlim = c(1990, 1995))
+```
+
+We see that, when values move along the trend, predictions are very accurate. However, when there is some abrupt variation which are not due to noise, we see it takes some timesteps for the model to correct it.

@@ -1,0 +1,120 @@
+---
+title: "Estimating AR(3) coefficients"
+---
+
+Given definition of $AR(3)$:
+
+$$
+X_t = Z_t + \phi_1 X_{t-1} + \phi_2 X_{t-2} + \phi_3 X_{t-3} \\
+Z_t \sim Normal(\mu, \sigma_Z^2)
+$$
+
+We will be simulating the following process:
+
+$$
+X_t = Z_t + \frac{1}{3} X_{t-1} + \frac{1}{2} X_{t-2} + \frac{7}{100} X_{t-3} \\
+Z_t \sim Normal(\mu, 4^2)
+$$
+
+Let's visualize the Yule Walker equations in the matrix form:
+
+$$
+\hat{b} = \hat{R} \hat{\phi} \\
+\begin{bmatrix}
+r_1 \\
+r_2 \\
+r_3 \\
+\end{bmatrix} = 
+\begin{bmatrix}
+1 & r_1  & r_2 \\
+r_1 & 1  & r_1 \\
+r_2 & r_1 & 1\\
+\end{bmatrix}
+\begin{bmatrix}
+\hat{\phi_1} \\
+\hat{\phi_2} \\
+\hat{\phi_3} \\
+\end{bmatrix}
+$$
+
+Where $r_i$ is the estimated $i_{th}$ autocorrelation coefficient. The Yule Walker estimation for $\sigma_Z^2$ is:
+
+$$
+\hat{\sigma_Z^2} = c_0 (1 - b^{\top} \hat{\phi})
+$$
+
+Where $c_0$ is the autocovariance estimate at lag $0$.
+
+Let's simualte the process:
+
+```{r}
+set.seed(2017)
+n <- 100000
+ar.process <- arima.sim(n, model = list(ar = c(1/3, 1/2, 7/100)), sd = 4)
+```
+
+Now we compute $\hat{b}$:
+
+```{r}
+r <- acf(ar.process, type = "correlation", plot = FALSE)$acf[2:4]
+b <- matrix(r, 3, 1)
+b
+```
+
+Now time to build $\hat{R}$:
+
+
+
+$$
+\hat{b} = \hat{R} \hat{\phi} \\
+\begin{bmatrix}
+r_1 \\
+r_2 \\
+r_3 \\
+\end{bmatrix} = 
+\begin{bmatrix}
+1 & r_1  & r_2 \\
+r_1 & 1  & r_1 \\
+r_2 & r_1 & 1\\
+\end{bmatrix}
+\begin{bmatrix}
+\hat{\phi_1} \\
+\hat{\phi_2} \\
+\hat{\phi_3} \\
+\end{bmatrix}
+$$
+
+Let's implement a generic function for getting $\hat{R}$:
+
+```{r}
+p <- 3
+R <- matrix(1, p, p)
+for (row in 1:p) {
+  for (i in seq(1, row - 1, length.out = row - 1)) {
+    R[row, i] <- b[row - i]
+  }
+  for (i in seq(row + 1, p, length.out = p - row)) {
+    R[row, i] <- b[i - row]
+  }
+}
+```
+
+We can now solve for $\hat{\phi}$:
+
+```{r}
+phi.hat <- solve(R, b)
+phi.hat
+```
+
+And we can finally estimate $\sigma_Z^2$ as:
+
+$$
+\hat{\sigma_Z^2} = c_0 (1 - \hat{b}^{\top} \hat{\phi})
+$$
+```{r}
+c0 <- acf(ar.process, type = "covariance", plot=FALSE)$acf[1]
+var.hat = c0 * (1 - t(b) %*% phi.hat)
+var.hat
+```
+
+We see the estimated coefficients and sigma are very close to the ones from the underlying generating process.

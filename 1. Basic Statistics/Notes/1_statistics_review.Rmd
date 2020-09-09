@@ -1,0 +1,170 @@
+---
+title: "Week 1 - Statistics Review"
+---
+
+# R recap
+
+## Basic operations
+
+Using conccatenation operator in R.
+
+```{r}
+data.1 = c(35, 8, 10, 23, 42)
+```
+
+Display data.
+
+```{r}
+print(data.1)  # or "data.1"
+```
+
+Show summary of dataset.
+
+```{r}
+summary(data.1)
+mean(data.1)
+sd(data.1)
+```
+
+
+## Visualizing data distribution
+
+Obtain histogram.
+
+
+```{r}
+small.size.dataset=c(91,49,76,112,97,42,70, 100, 8, 112, 95, 90, 78, 62, 56, 94, 65, 58, 109, 70, 109, 91, 71, 76, 68, 62, 134, 57, 83, 66)
+hist(small.size.dataset, col='red', main='Histogram of my data', xlab='My data points')  # frequency-based
+```
+
+We can compute the density-based histogram as well:
+
+```{r}
+hist(small.size.dataset, col='red', main='Histogram of my data', xlab='My data points', freq=F)
+```
+
+We can also impose the number of bins. Note that the shape of the apparent distribution is sensitive
+to this parameter:
+
+```{r}
+hist(small.size.dataset, col='red', main='Histogram of my data', xlab='My data points', freq=F, breaks=25)
+```
+
+A usually better estimate of a distribution of the Histograms are usually not a good. Instead, we are using
+the **Kernel Density Estimation** (KDE).
+
+The KDE estimate underlying distribution without many assumptions. Its main parameter is the bandwidth
+parameter. It can be thought of the result of summing over the placement of a given kernel (e.g. Gaussian)
+on each of the data points. [Link to Wikipedia page](https://en.wikipedia.org/wiki/Kernel_density_estimation).
+
+__Exercise suggestion: kernel density estimation manual implementation__
+
+```{r}
+hist(small.size.dataset, col='red', main='Histogram of my data', xlab='My data points', freq=F)
+d = density(small.size.dataset)
+# Plot density line over histogram
+lines(d, col='blue', lwd=5)
+```
+
+
+## Plotting
+
+Let's set seed so results here are the same as in the Course tutorial.
+
+```{r}
+set.seed = 2016
+```
+
+Let's plot using a Scatterplot.
+```{r}
+var_1 = round(rnorm(n = 50, mean = 78, sd = 10))
+var_2 = round(rnorm(n = 50, mean = 70, sd = 14))
+plot(var_2~var_1, main='Test scores (n=50)', xlab='Var 1', ylab='Var 2', col='blue')
+```
+
+## Linear regression (Least Squares) in R, recap
+
+Let's use CO2 dataset for this.
+```{r}
+plot(co2, main='Atmospheric CO2 Concentration')
+```
+
+After looking at the data, we know linear regression not capturing all details (i.e. oscillations).
+Let's proceed, though.
+
+Given response time $y_i$:
+  $$y_i = beta_0 + beta_1 x_i + \epsilon_i$$
+  
+  
+### On the error term $\epsilon$
+
+$\elpsilon$ is the error term. When doing inference using more complex models, we need to invoke distributional assumptions,
+for which this term will be useful. The origin of the error may be due to several factors (e.g. measurement error)
+ 
+Common (reasonsable) assumption for the error term:
+  - errors are normally distributed around zero
+  - errors have same variance (homoscedastic)
+  - errors are independent across observations
+
+$$\epsilon = \sum^{N}_{i}(\hat{y}_i - y_i)^2$$
+
+where;
+  - $y_i$ is the ith groundtruth
+  - $\hat{y}_i$ is the ith prediction (i.e. $\hat{y}_i = slope x_i + intercept$)
+
+
+### Least Squares in R
+
+```{r}
+co2.linear.model = lm(co2 ~ time(co2))
+plot(co2, main='Atmoshperic CO" concentration with Fitted Line')
+abline(co2.linear.model, col='red')  # Add line given intercept and slope
+```
+
+
+# Basic statistics review
+
+Given fitted model, we want to asses normality of the residuals.
+
+```{r}
+co2.residuals = resid(co2.linear.model)
+hist(co2.residuals, main='Histogram of residuals')
+```
+
+Results look weakly normal, though it is not overwhelming. How do we asses normality on the residuals?
+
+- When having many data points, we can see visually whether Normal by superposing a Gaussian distribution line on it.
+- When having few data points (like this case), histogram does not help to asses normality.
+
+## Quantile-Quantile plot
+
+The **Quantile-Quantile** (qq) plot is a non-parametric visual way to compare [two shapes of distributions:](https://en.wikipedia.org/wiki/Q%E2%80%93Q_plot).
+It plots the quantiles (i.e. we mean the fraction of points below the certain value) of a dataset against the quantiles of the second dataset.
+
+__Exercise suggestions: implement qqplot__
+
+```{r}
+qqnorm(co2.residuals)
+qqline(co2.residuals, distribution = qnorm)
+```
+
+  - X axis shows the quantiles assuming the residuals come from a Normal.
+  - Y axis show the actual quantiles for the residuals.
+
+Note that instead of labelling axis with quantiles, the value in the original set is plotted.
+
+If we see sistematic deviations between line and points, we can reject residuals following a normal distribution.
+See [this link](https://www.itl.nist.gov/div898/handbook/eda/section3/qqplot.htm) for relevant facts about qqplot.
+
+IF we plot the residuals in time, we see that they positively, on average, for some years, and negative for some others.
+
+```{r}
+plot(co2.residuals ~ time(co2))
+```
+
+
+To observe the oscillatory behavior seen previously, we need to closer closer at the plot:
+
+```{r}
+plot(co2.residuals ~ time(co2), xlim=c(1960, 1963), main='Zoomed residuals')
+```

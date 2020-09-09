@@ -1,0 +1,62 @@
+---
+title: "Measuring linear association"
+---
+
+# Correlation review
+
+The association between two variables can be measured in different ways (e.g. Pearson product moment correlation coefficient or correlation,
+Kullback-Leibler divergence).
+
+## Covariance recap
+
+Variance $\sigma^2$ of a random variable $X$ is defined as:
+
+$$\sigma^2 \equiv V[X] \equiv E[ (X - \mu_{X}) (X - \mu{X}) ]$$
+
+For a dataset, we use the estimate:
+
+$$s^2 \equiv \frac{1}{n-1} \sum^N_i (x_i - \hat{x}_i)(x_i - \hat{x}_i)$$
+
+Covariance can be used to measure the linear relationship between two variables, as:
+
+$$Cov[X, Y] \equiv E[ (X - \mu_X)(Y - \mu_Y) ]$$
+
+f we analyze the previous formula, we see the pairs of points $(x_i, y_i)$ positively contribute to the metric when they are both above or below their correponding average.
+
+And the corresponding data estimate for covariance can be computed as:
+
+$$cov \equiv \frac{1}{n-1} \sum^N_i (x_i - \hat{x}_i)(y_i - \hat{y}_i)$$
+
+
+## Correlation
+
+Covariance is expressed as the product of the units of the two variables. However, we want correlation to be standard units  (i.e. by scaling by the standard deviations). It can be defined as:
+
+$$ \rho(X,Y) = E \left[ \left(\frac{X - \mu_x}{\sigma_X}\right) \left(\frac{Y - \mu_Y}{\sigma_Y} \right)\right]$$
+
+To compute the correlation estimate $r$ of data, we compute:
+
+$$ r \equiv \hat{\rho} \equiv \frac{1}{n-1} \sum \left( \frac{x_i - \hat{x}_i}{s_X} \right) \left( \frac{y_i - \hat{y}_i}{s_Y} \right) $$
+
+### Correlation example
+
+We can compute an scatter plot matrix of the variables one against the other with `pairs`:
+
+```{r}
+pairs(trees, pch=21, bg=c("red"))
+```
+
+All variables appear to be linearly associated (if we think of what they represent, they should). The plot shows `Height` to be a decent predictor for `Volume` and `Girth` to be a very strong one. Let's take a look at the covariances:
+
+```{r}
+cov(trees)
+```
+
+We see that, opposite to what we interpreted from the plot above, the covariance between `Volume` and `Height` is higher than the one between `Girth` and `Volume` (and it can be explained when we take a look at the variables involved). If we compute the correlation:
+
+```{r}
+cor(trees)
+```
+
+We see confirm correlation between `Girth` and `Volume` is indeed higher than the one for `Girth` and `Height` and does not change in case we decide to change their units.
+

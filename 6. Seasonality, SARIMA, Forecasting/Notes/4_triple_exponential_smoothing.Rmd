@@ -1,0 +1,148 @@
+---
+title: "Triple Exponential Smoothing"
+---
+
+## Additive vs multiplicative seasonality
+
+When dealing with seasonality, we may have:
+
+- Additve seasonality: where the amplitude of the seasonality is independent of the level. In this case, seasonality is added by adding a constant amount.
+
+- Multiplicative seasonality: amplitude of the level is dependent on the level. In this case, seasonality is added by adding multipliying a constant amount.
+
+[Here](https://kourentzes.com/forecasting/2014/11/09/additive-and-multiplicative-seasonality/
+) is a didactiv resource on this.
+
+
+## Data
+
+We will be using here the monthly total (in thousands) of international monthly passangers between 1949 to 1960.
+
+```{r}
+library(forecast)
+
+data <- AirPassengers
+
+par(mfrow = c(2, 1))
+plot(data, main = "Number of Monthly Air Passengers", ylab = "Thousands")
+plot(
+  log10(data),
+  main = "Log10 number of Monthly Air Passengers",
+  ylab = "Thousands"
+)
+```
+
+It is quite clear that there is:
+
+- A year seasonality.
+- An upwards trend.
+- An increasing variability in the trend (i.e. multiplicative seasonality).
+
+In the log plot, however, seasonality remains additive. It is a common trick to use logarithm to convert multiplicative seasonality into additive.
+
+If we model this data using Simple or Double Exponential Smoothing, we get:
+
+```{r}
+par(mfrow = c(1, 2))
+plot(
+  HoltWinters(data, beta = FALSE, gamma = FALSE),
+  main = "Simple Exponential Smoothing"
+)
+plot(
+  HoltWinters(data, gamma = FALSE),
+  main = "Double Exponential Smoothing"
+)
+```
+
+We see performance of these predictors is poor, as they fail to include the obvious seasonality in the data.
+
+## Triple Exponential Smoothing
+
+To account for seasonality, we can use Triple Exponential Smoothing. It can be defined as an evolution of the Double Exponential Smoothing where a correction based on the seasonality using lag $m$ is added when computing the smoothing of the level:
+
+$$
+level_t = \alpha (X_t - seasonal_{t-m}) + (1 - \alpha) (level_{t-1} + trend_{t-1})
+$$
+A new term is introduced, the \textit{seasonal} one. It is defined as:
+
+$$
+seasonal_t = \gamma (X_t - level_t) + (1 - \gamma) seasonal_{t-m}
+$$
+
+If we assume the trend is is computed the same way as it was in Double Exponential Smoothing, we have the following formula for the Tripe Exponential Smoothing with **additive seasonality**:
+
+$$
+\hat{X}_{t+k} = level_t + k \cdot trend_t + seasonal_{t+k-m} \\
+$$
+
+Where:
+
+$$
+level_t = \begin{cases}
+X_1 & t = 1 \\
+\alpha (X_t - seasonal_{t-m}) + (1 - \alpha) (level_{t-1} + trend_{t-1}) & t \gt 1
+\end{cases} \\
+trend_t = \begin{cases}
+X_2 - X_1 & t = 1 \\
+\beta (level_t - level_{t-1}) + (1 - \beta) trend_{t-1} & t > 1
+\end{cases} \\
+seasonal_t = \begin{cases}
+X_t - level_t & t \le m\\
+\gamma (X_t - level_t) + (1 - \gamma) seasonal_{t-m} & t > 1
+\end{cases}
+$$
+
+Instead, if we use **multiplicative seasonality**, we have the following formula:
+
+$$
+\hat{X}_{t+k} = (level_t + k \cdot trend_t) \cdot seasonal_{t+k-m} \\
+$$
+
+## Trile Exponential Smoothing in R
+
+We can get optimal values for $\alpha$, $\beta$ and $\gamma$ by:
+
+```{r}
+hw <- HoltWinters(data, seasonal = "multiplicative")
+hw
+```
+
+See that we can control the seasonality type using the `seasonal` parameter. We have been provided with optimal values for $\alpha$, $\beta$ and $\gamma_{seasonal}$. We can plot the forecasted values:
+
+```{r}
+plot(
+  hw,
+  main = "Triple Exponential Smoothing with optimal parameters"
+)
+```
+
+Note that we have been provided with a set of coefficients:
+
+- $a = 469.3232206$: it is the level at time $X_{n}$, where $n$ is the length of the dataset.
+- $b=3.0215391$: it is the trend at time $X_{n}$, where $n$ is the length of the dataset.
+- $s_i$: they are the seasonal coefficients at time $X_{s}$. Note $s \mod m = i$, where $m$ is the seasonality span (i.e. we have $m=12$ in the example). As an example: $s_1=0.9464611$ is the first seasonal value, to be used for forecasts on January months (as example data starts on January).
+
+In order to compute the next forecast value at January 1961 (i.e. $n=145$), we can do:
+
+$$
+\hat{X}_{n+k} = (level_n + k \cdot trend_n) \cdot seasonal_{n+k-m} \\
+\hat{X}_{144+1} = (level_{14} + 1 \cdot trend_{144}) \cdot seasonal_{144+1-12} \\
+\hat{X}_{145} = (level_{144} + 1 \cdot trend_{144}) \cdot seasonal_{133} = (level_{144} + 1 \cdot trend_{144}) \cdot seasonal_{1} \\
+\hat{X}_{145} = (469.323220 + 1 \cdot 3.0215391) \cdot 0.9464611 \\
+\hat{X}_{145} = 447.0559
+$$
+We can forecast using the `forecast` library to ensure our prediction makes sense:
+
+```{r}
+forecast(hw)
+```
+
+We can plot predictions and their confidence intervals by:
+
+```{r}
+plot(forecast(hw))
+```
+
+### Exponential smoothing vs ARIMA family models
+
+The main difference between these two families of models is on the assumptions they make on the data. While ARIMA models rely on the time series being stationary, exponential smoothing models are non-parametric and, therefore, make no assumptions on the data. We will decide the one whose assumptions best fit the data we want to use for forecasting. See [this thread](https://www.researchgate.net/post/What_is_the_difference_between_ARIMA_and_Exponential_smoothing_model_as_both_are_based_on_their_past_values_and_error_term) for more information.
